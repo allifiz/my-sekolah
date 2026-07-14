@@ -34,10 +34,16 @@ Dokumen ruang lingkup lengkap tersedia di [`docs/product-v1.md`](docs/product-v1
 
 ```bash
 npm install
+cp .env.example .env
+npm run db:generate
+npm run db:migrate -- --name init
+npm run db:seed
 npm run dev
 ```
 
 Buka `http://localhost:3000`.
+
+Panduan database lebih lengkap tersedia di [`docs/database-bootstrap.md`](docs/database-bootstrap.md).
 
 ## Status
 
