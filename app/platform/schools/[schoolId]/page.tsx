@@ -3,16 +3,26 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { changeSchoolStatus } from "../actions";
 
-export default async function SchoolDetailPage({ params }: { params: Promise<{ schoolId: string }> }) {
+export default async function SchoolDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ schoolId: string }>;
+  searchParams: Promise<{ invite?: string }>;
+}) {
   const { schoolId } = await params;
+  const { invite } = await searchParams;
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
     include: {
       _count: { select: { members: true, auditLogs: true } },
+      invitations: { orderBy: { createdAt: "desc" }, take: 5 },
       auditLogs: { orderBy: { createdAt: "desc" }, take: 12, include: { actor: { select: { name: true, email: true } } } },
     },
   });
   if (!school) notFound();
+
+  const invitePath = invite ? `/invite/${invite}` : null;
 
   return (
     <div className="admin-page">
@@ -20,6 +30,15 @@ export default async function SchoolDetailPage({ params }: { params: Promise<{ s
         <div><span className="eyebrow">Tenant detail</span><h1>{school.name}</h1><p>{school.code} · {school.slug}</p></div>
         <Link href="/platform/schools" className="secondary-button">Kembali</Link>
       </header>
+
+      {invitePath && (
+        <section className="panel section-panel">
+          <h2>Undangan School Owner berhasil dibuat</h2>
+          <p>Salin tautan ini dan kirim secara aman kepada admin pertama. Tautan hanya ditampilkan setelah onboarding dan berlaku 7 hari.</p>
+          <div className="form-alert"><code>{invitePath}</code></div>
+          <Link href={invitePath} className="primary-button">Buka halaman aktivasi</Link>
+        </section>
+      )}
 
       <section className="detail-grid">
         <article className="panel detail-card"><span>Status</span><strong>{school.status}</strong><small>{school.trialEndsAt ? `Trial sampai ${school.trialEndsAt.toLocaleDateString("id-ID")}` : "Tanpa trial aktif"}</small></article>
@@ -37,6 +56,10 @@ export default async function SchoolDetailPage({ params }: { params: Promise<{ s
             <div><dt>Timezone</dt><dd>{school.timezone}</dd></div>
             <div><dt>Dibuat</dt><dd>{school.createdAt.toLocaleString("id-ID")}</dd></div>
           </dl>
+          <h3>Undangan terbaru</h3>
+          <div className="audit-list">
+            {school.invitations.map((item) => <div key={item.id} className="audit-item"><div><strong>{item.email}</strong><span>{item.status}</span></div><time>{item.expiresAt.toLocaleString("id-ID")}</time></div>)}
+          </div>
         </article>
 
         <article className="panel section-panel">
