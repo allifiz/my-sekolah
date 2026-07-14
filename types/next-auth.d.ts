@@ -1,22 +1,23 @@
 import "next-auth";
 
-interface PlatformUserFields {
+interface AppUserFields {
   platformRole?: string;
+  schoolId?: string;
 }
 
 declare module "next-auth" {
-  interface User extends PlatformUserFields {}
+  interface User extends AppUserFields {}
   interface Session {
     user: {
       id: string;
       email?: string | null;
       name?: string | null;
-    } & PlatformUserFields;
+    } & AppUserFields;
   }
 }
 
 declare module "next-auth/jwt" {
-  interface JWT extends PlatformUserFields {
+  interface JWT extends AppUserFields {
     userId?: string;
   }
 }
