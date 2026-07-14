@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { sendSchoolInvitationEmail } from "@/lib/email/send-school-invitation";
 import { prisma } from "@/lib/prisma";
 import { provisionSchoolAccess } from "@/lib/school/provision-access";
 
@@ -42,6 +43,7 @@ export async function createSchool(formData: FormData) {
 
   const invitationToken = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(invitationToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 7 * 86400000);
 
   const school = await prisma.$transaction(async (tx) => {
     const created = await tx.school.create({
@@ -65,7 +67,7 @@ export async function createSchool(formData: FormData) {
         schoolId: created.id,
         email: input.ownerEmail,
         tokenHash,
-        expiresAt: new Date(Date.now() + 7 * 86400000),
+        expiresAt,
         invitedById: actor.id,
       },
     });
@@ -82,9 +84,31 @@ export async function createSchool(formData: FormData) {
     return created;
   });
 
+  const emailResult = await sendSchoolInvitationEmail({
+    to: input.ownerEmail,
+    schoolName: school.name,
+    invitationToken,
+    expiresAt,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: actor.id,
+      schoolId: school.id,
+      action: emailResult.sent ? "invitation.email_sent" : "invitation.email_failed",
+      entityType: "Invitation",
+      reason: emailResult.sent ? null : emailResult.reason,
+      metadata: {
+        recipient: input.ownerEmail,
+        providerMessageId: emailResult.sent ? emailResult.id : null,
+      },
+    },
+  });
+
   revalidatePath("/platform");
   revalidatePath("/platform/schools");
-  redirect(`/platform/schools/${school.id}?invite=${invitationToken}`);
+  const emailStatus = emailResult.sent ? "sent" : emailResult.reason;
+  redirect(`/platform/schools/${school.id}?invite=${invitationToken}&email=${emailStatus}`);
 }
 
 const statusSchema = z.object({
