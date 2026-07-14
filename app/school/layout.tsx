@@ -20,6 +20,7 @@ export default async function SchoolLayout({ children }: { children: React.React
         <div><span className="eyebrow">School Workspace</span><h2>{school.name}</h2><p>{school.code} · {school.status}</p></div>
         <nav className="admin-nav">
           <Link href="/school">Dashboard</Link>
+          <Link href="/school/academic">Akademik</Link>
           <Link href="/school/members">Anggota</Link>
           <Link href="/school/settings">Pengaturan</Link>
         </nav>
