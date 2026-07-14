@@ -28,7 +28,7 @@ Dokumen ruang lingkup lengkap tersedia di [`docs/product-v1.md`](docs/product-v1
 - TypeScript
 - Tailwind CSS
 - PostgreSQL
-- Prisma atau Drizzle (diputuskan pada fase database)
+- Prisma ORM
 
 ## Menjalankan proyek
 
