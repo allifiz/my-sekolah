@@ -1,12 +1,14 @@
 "use server";
 
 import { SchoolStatus } from "@prisma/client";
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { provisionSchoolAccess } from "@/lib/school/provision-access";
 
 const createSchoolSchema = z.object({
   name: z.string().trim().min(3).max(120),
@@ -14,6 +16,7 @@ const createSchoolSchema = z.object({
   slug: z.string().trim().min(3).max(80).regex(/^[a-z0-9-]+$/),
   email: z.string().trim().email().or(z.literal("")),
   phone: z.string().trim().max(30),
+  ownerEmail: z.string().trim().toLowerCase().email(),
   studentLimit: z.coerce.number().int().min(1).max(100000),
   userLimit: z.coerce.number().int().min(1).max(10000),
   trialDays: z.coerce.number().int().min(0).max(365),
@@ -37,6 +40,9 @@ export async function createSchool(formData: FormData) {
   });
   if (duplicate) redirect("/platform/schools/new?error=duplicate");
 
+  const invitationToken = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(invitationToken).digest("hex");
+
   const school = await prisma.$transaction(async (tx) => {
     const created = await tx.school.create({
       data: {
@@ -53,6 +59,16 @@ export async function createSchool(formData: FormData) {
       },
     });
 
+    await provisionSchoolAccess(tx, created.id);
+    await tx.invitation.create({
+      data: {
+        schoolId: created.id,
+        email: input.ownerEmail,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 86400000),
+        invitedById: actor.id,
+      },
+    });
     await tx.auditLog.create({
       data: {
         actorId: actor.id,
@@ -60,7 +76,7 @@ export async function createSchool(formData: FormData) {
         action: "school.created",
         entityType: "School",
         entityId: created.id,
-        newValue: { name: created.name, code: created.code, status: created.status },
+        newValue: { name: created.name, code: created.code, status: created.status, ownerEmail: input.ownerEmail },
       },
     });
     return created;
@@ -68,7 +84,7 @@ export async function createSchool(formData: FormData) {
 
   revalidatePath("/platform");
   revalidatePath("/platform/schools");
-  redirect(`/platform/schools/${school.id}`);
+  redirect(`/platform/schools/${school.id}?invite=${invitationToken}`);
 }
 
 const statusSchema = z.object({
