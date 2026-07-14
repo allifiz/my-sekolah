@@ -43,8 +43,9 @@ npm run dev
 
 Buka `http://localhost:3000`.
 
-Panduan database lebih lengkap tersedia di [`docs/database-bootstrap.md`](docs/database-bootstrap.md).
+Panduan database lokal tersedia di [`docs/database-bootstrap.md`](docs/database-bootstrap.md).
+Panduan database development Vercel + Neon tersedia di [`docs/vercel-neon-setup.md`](docs/vercel-neon-setup.md).
 
 ## Status
 
-Repository sedang berada pada fase bootstrap fondasi V1.
+Repository sedang berada pada fase fondasi V1: Prisma, model multi-tenant, seed RBAC, tenant context, dan authorization server-side.
