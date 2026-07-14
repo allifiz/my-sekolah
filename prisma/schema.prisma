@@ -111,6 +111,8 @@ model School {
   impersonations ImpersonationSession[]
   academicYears  AcademicYear[]
   semesters      Semester[]
+  gradeLevels    GradeLevel[]
+  classGroups    ClassGroup[]
 
   @@index([status])
   @@index([deletedAt])
@@ -232,8 +234,9 @@ model AcademicYear {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  semesters Semester[]
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  semesters   Semester[]
+  classGroups ClassGroup[]
 
   @@unique([schoolId, name])
   @@index([schoolId, isActive])
@@ -258,6 +261,45 @@ model Semester {
   @@unique([academicYearId, type])
   @@index([schoolId, isActive])
   @@index([academicYearId, startDate])
+}
+
+model GradeLevel {
+  id        String   @id @default(cuid())
+  schoolId  String
+  code      String
+  name      String
+  order     Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroups ClassGroup[]
+
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@index([schoolId, order])
+  @@index([schoolId, isActive])
+}
+
+model ClassGroup {
+  id             String   @id @default(cuid())
+  schoolId       String
+  academicYearId String
+  gradeLevelId   String
+  name           String
+  capacity       Int      @default(36)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  gradeLevel   GradeLevel   @relation(fields: [gradeLevelId], references: [id], onDelete: Restrict)
+
+  @@unique([academicYearId, name])
+  @@index([schoolId, isActive])
+  @@index([academicYearId, gradeLevelId])
 }
 
 model AuditLog {
