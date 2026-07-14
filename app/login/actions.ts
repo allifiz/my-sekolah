@@ -10,7 +10,7 @@ export async function loginAction(formData: FormData) {
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/platform",
+      redirectTo: "/after-login",
     });
   } catch (error) {
     if (error instanceof AuthError) {
