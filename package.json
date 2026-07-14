@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -14,11 +15,8 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed",
+    "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -40,6 +38,6 @@
   },
   "packageManager": "npm@11.0.0",
   "engines": {
-    "node": ">=20.9.0"
+    "node": "22.x"
   }
 }
