@@ -26,8 +26,7 @@ export function tenantWhere<T extends Record<string, unknown>>(
   context: TenantContext,
   where?: T,
 ): T & { schoolId: string } {
-  return {
-    ...where,
+  return Object.assign({}, where, {
     schoolId: context.schoolId,
-  };
+  }) as T & { schoolId: string };
 }
