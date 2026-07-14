@@ -25,25 +25,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
-          include: { platformMembership: true },
+          include: {
+            platformMembership: true,
+            schoolMemberships: {
+              where: { status: "ACTIVE", deletedAt: null, school: { deletedAt: null } },
+              orderBy: { createdAt: "asc" },
+              take: 1,
+              include: { school: { select: { id: true, status: true } } },
+            },
+          },
         });
 
         if (!user?.passwordHash || user.deletedAt) return null;
-        if (!user.platformMembership?.isActive) return null;
+        const platformAccess = Boolean(user.platformMembership?.isActive);
+        const schoolMembership = user.schoolMemberships[0];
+        const schoolAccess = Boolean(schoolMembership && !["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(schoolMembership.school.status));
+        if (!platformAccess && !schoolAccess) return null;
 
         const valid = await compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
 
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          platformRole: user.platformMembership.role,
+          platformRole: user.platformMembership?.role,
+          schoolId: schoolMembership?.schoolId,
         };
       },
     }),
@@ -53,13 +62,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.userId = user.id;
         token.platformRole = user.platformRole;
+        token.schoolId = user.schoolId;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.userId as string;
-        session.user.platformRole = token.platformRole as string;
+        session.user.platformRole = token.platformRole as string | undefined;
+        session.user.schoolId = token.schoolId as string | undefined;
       }
       return session;
     },
