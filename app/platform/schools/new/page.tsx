@@ -8,7 +8,7 @@ export default async function NewSchoolPage({ searchParams }: { searchParams: Pr
   return (
     <div className="admin-page narrow-page">
       <header className="page-header">
-        <div><span className="eyebrow">Onboarding tenant</span><h1>Tambah sekolah</h1><p>Buat tenant baru dengan trial dan batas penggunaan awal.</p></div>
+        <div><span className="eyebrow">Onboarding tenant</span><h1>Tambah sekolah</h1><p>Buat tenant, role bawaan, dan undangan pemilik sekolah dalam satu proses.</p></div>
         <Link href="/platform/schools" className="secondary-button">Kembali</Link>
       </header>
 
@@ -18,13 +18,14 @@ export default async function NewSchoolPage({ searchParams }: { searchParams: Pr
           <label className="field field-wide"><span>Nama sekolah</span><input name="name" required minLength={3} placeholder="SMA Nusantara" /></label>
           <label className="field"><span>Kode</span><input name="code" required placeholder="SMA-001" /></label>
           <label className="field"><span>Slug</span><input name="slug" required pattern="[a-z0-9-]+" placeholder="sma-nusantara" /></label>
-          <label className="field"><span>Email</span><input name="email" type="email" placeholder="admin@sekolah.sch.id" /></label>
+          <label className="field"><span>Email sekolah</span><input name="email" type="email" placeholder="info@sekolah.sch.id" /></label>
           <label className="field"><span>Telepon</span><input name="phone" placeholder="021 555 1234" /></label>
+          <label className="field field-wide"><span>Email pemilik/admin pertama</span><input name="ownerEmail" type="email" required placeholder="admin@sekolah.sch.id" /><small>Undangan aktivasi berlaku selama 7 hari.</small></label>
           <label className="field"><span>Limit siswa</span><input name="studentLimit" type="number" min="1" defaultValue="200" required /></label>
           <label className="field"><span>Limit pengguna</span><input name="userLimit" type="number" min="1" defaultValue="20" required /></label>
           <label className="field"><span>Masa trial (hari)</span><input name="trialDays" type="number" min="0" max="365" defaultValue="30" required /></label>
         </div>
-        <div className="form-actions"><button type="submit" className="primary-button">Buat tenant sekolah</button></div>
+        <div className="form-actions"><button type="submit" className="primary-button">Buat tenant dan undangan</button></div>
       </form>
     </div>
   );
