@@ -266,7 +266,17 @@ Support memasukkan alasan atau nomor tiket, masuk sebagai admin sekolah dengan b
 - Multi-cabang kompleks
 - AI assistant
 
-## 10. Tahapan Pengerjaan
+## 10. Keputusan Teknis Awal
+
+- Framework: Next.js 16
+- Bahasa: TypeScript
+- UI: Tailwind CSS
+- Database: PostgreSQL
+- ORM: Prisma ORM
+- Hosting aplikasi: Vercel
+- Arsitektur V1: modular monolith, bukan microservices
+
+## 11. Tahapan Pengerjaan
 
 1. Bootstrap repository, standar kode, dan CI
 2. Authentication, tenant model, RBAC, dan audit log
@@ -279,7 +289,7 @@ Support memasukkan alasan atau nomor tiket, masuk sebagai admin sekolah dengan b
 9. Testing, security review, backup, demo data
 10. Pilot satu sekolah dan iterasi
 
-## 11. Definition of Done V1
+## 12. Definition of Done V1
 
 V1 selesai ketika:
 
