@@ -8,15 +8,67 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum SchoolStatus { TRIAL ACTIVE PAST_DUE SUSPENDED CANCELLED ARCHIVED }
-enum PlatformRole { OWNER ADMIN SUPPORT FINANCE }
-enum MembershipStatus { INVITED ACTIVE SUSPENDED LEFT }
-enum InvitationStatus { PENDING ACCEPTED EXPIRED REVOKED }
-enum AuditActorType { USER SYSTEM }
-enum SemesterType { ODD EVEN }
-enum StudentStatus { ACTIVE GRADUATED TRANSFERRED INACTIVE }
-enum EnrollmentStatus { ACTIVE COMPLETED TRANSFERRED CANCELLED }
-enum AttendanceStatus { PRESENT SICK EXCUSED ABSENT LATE }
+enum SchoolStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  ARCHIVED
+}
+
+enum PlatformRole {
+  OWNER
+  ADMIN
+  SUPPORT
+  FINANCE
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LEFT
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+}
+
+enum SemesterType {
+  ODD
+  EVEN
+}
+
+enum StudentStatus {
+  ACTIVE
+  GRADUATED
+  TRANSFERRED
+  INACTIVE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  TRANSFERRED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  SICK
+  EXCUSED
+  ABSENT
+  LATE
+}
 
 model User {
   id String @id @default(cuid())
