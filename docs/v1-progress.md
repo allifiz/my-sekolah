@@ -6,10 +6,10 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 
 ## Overall status
 
-- Estimated V1 completion: **40%**
-- Current phase: **Student Information System complete; Attendance is next**
+- Estimated V1 completion: **48%**
+- Current phase: **Attendance core complete; Finance is next**
 - Delivery mode during V1: **commit directly to `main`**
-- Production status: **latest deployment READY on Vercel**
+- Production status: **latest deployment pending verification on Vercel**
 
 ## 1. Platform and tenant foundation
 
@@ -112,20 +112,24 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 ## 5. Attendance
 
 ### Done
-- [ ] Nothing implemented yet
+- [x] Attendance session model
+- [x] Attendance record model
+- [x] Statuses: present, sick, excused, absent, late
+- [x] Daily attendance by class group
+- [x] Homeroom teacher access to assigned class groups
+- [x] Bulk mark present with exceptions
+- [x] Attendance correction with reason and audit log
+- [x] Daily recap
+- [x] Monthly recap
+- [x] Student attendance history by month
+- [x] Class attendance statistics
+- [x] CSV export compatible with Excel
 
 ### Remaining
-- [ ] Attendance session model
-- [ ] Attendance record model
-- [ ] Statuses: present, sick, excused, absent, late
-- [ ] Daily attendance by class group
-- [ ] Homeroom teacher access to assigned class groups
-- [ ] Bulk mark present with exceptions
-- [ ] Attendance correction with reason and audit log
-- [ ] Daily and monthly recap
-- [ ] Student attendance history
-- [ ] School attendance dashboard
-- [ ] CSV export
+- [ ] School-wide attendance dashboard across all class groups
+- [ ] Cross-month student attendance history
+- [ ] Attendance alerts and anomaly indicators
+- [ ] Automated tests for attendance permissions and corrections
 
 ## 6. Finance
 
@@ -181,12 +185,13 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 ### Done
 - [x] Basic dashboard foundations
 - [x] Student CSV export
+- [x] Attendance daily and monthly reports
+- [x] Attendance CSV export
 
 ### Remaining
 - [ ] Platform dashboard KPIs
 - [ ] School dashboard KPIs
 - [ ] Audit log screens
-- [ ] Attendance reports
 - [ ] Finance reports
 - [ ] Student roster reports
 - [ ] Subscription and tenant health reporting
@@ -221,11 +226,11 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 
 ## Recommended execution order
 
-1. **Attendance** — complete daily attendance, corrections, and recaps.
-2. **Finance** — billing, payments, receipts, and outstanding balances.
-3. **Communication** — announcements and basic notifications.
-4. **Parent portal** — attendance, billing, and announcement visibility.
-5. **Foundation completion** — members, permissions, subscription enforcement, settings.
+1. **Finance** — billing, payments, receipts, and outstanding balances.
+2. **Communication** — announcements and basic notifications.
+3. **Parent portal** — attendance, billing, and announcement visibility.
+4. **Foundation completion** — members, permissions, subscription enforcement, settings.
+5. **Attendance completion** — school-wide dashboard and hardening.
 6. **Hardening** — tests, security checks, monitoring, backups, pilot, and release.
 
 ## V1 release gate
@@ -234,7 +239,7 @@ V1 may be released only when all conditions below are true:
 
 - [ ] One school can complete onboarding without manual database changes.
 - [ ] School staff can manage academic structure, students, guardians, and class assignments.
-- [ ] Teachers can submit and correct attendance.
+- [x] Teachers can submit and correct attendance.
 - [ ] Finance staff can issue bills, record payments, and generate receipts.
 - [ ] School staff can publish announcements.
 - [ ] Guardians can securely view their own children’s information.
