@@ -102,17 +102,18 @@ model School {
   updatedAt          DateTime     @updatedAt
   deletedAt          DateTime?
 
-  settings       SchoolSettings?
-  members        SchoolMember[]
-  roles          Role[]
-  permissions    Permission[]
-  invitations    Invitation[]
-  auditLogs      AuditLog[]
-  impersonations ImpersonationSession[]
-  academicYears  AcademicYear[]
-  semesters      Semester[]
-  gradeLevels    GradeLevel[]
-  classGroups    ClassGroup[]
+  settings             SchoolSettings?
+  members              SchoolMember[]
+  roles                Role[]
+  permissions          Permission[]
+  invitations          Invitation[]
+  auditLogs            AuditLog[]
+  impersonations       ImpersonationSession[]
+  academicYears        AcademicYear[]
+  semesters            Semester[]
+  gradeLevels          GradeLevel[]
+  classGroups          ClassGroup[]
+  homeroomAssignments  HomeroomAssignment[]
 
   @@index([status])
   @@index([deletedAt])
@@ -140,9 +141,10 @@ model SchoolMember {
   updatedAt DateTime         @updatedAt
   deletedAt DateTime?
 
-  school School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roles  MemberRole[]
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles                MemberRole[]
+  homeroomAssignments  HomeroomAssignment[]
 
   @@unique([schoolId, userId])
   @@index([schoolId, status])
@@ -293,13 +295,34 @@ model ClassGroup {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  gradeLevel   GradeLevel   @relation(fields: [gradeLevelId], references: [id], onDelete: Restrict)
+  school               School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear         AcademicYear           @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  gradeLevel           GradeLevel             @relation(fields: [gradeLevelId], references: [id], onDelete: Restrict)
+  homeroomAssignments  HomeroomAssignment[]
 
   @@unique([academicYearId, name])
   @@index([schoolId, isActive])
   @@index([academicYearId, gradeLevelId])
+}
+
+model HomeroomAssignment {
+  id             String   @id @default(cuid())
+  schoolId       String
+  classGroupId   String
+  schoolMemberId String
+  startedAt      DateTime @default(now())
+  endedAt        DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  schoolMember SchoolMember @relation(fields: [schoolMemberId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, isActive])
+  @@index([classGroupId, isActive])
+  @@index([schoolMemberId, isActive])
 }
 
 model AuditLog {
