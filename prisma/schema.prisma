@@ -8,162 +8,114 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum SchoolStatus {
-  TRIAL
-  ACTIVE
-  PAST_DUE
-  SUSPENDED
-  CANCELLED
-  ARCHIVED
-}
-
-enum PlatformRole {
-  OWNER
-  ADMIN
-  SUPPORT
-  FINANCE
-}
-
-enum MembershipStatus {
-  INVITED
-  ACTIVE
-  SUSPENDED
-  LEFT
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  EXPIRED
-  REVOKED
-}
-
-enum AuditActorType {
-  USER
-  SYSTEM
-}
-
-enum SemesterType {
-  ODD
-  EVEN
-}
-
-enum StudentStatus {
-  ACTIVE
-  GRADUATED
-  TRANSFERRED
-  INACTIVE
-}
-
-enum EnrollmentStatus {
-  ACTIVE
-  COMPLETED
-  TRANSFERRED
-  CANCELLED
-}
+enum SchoolStatus { TRIAL ACTIVE PAST_DUE SUSPENDED CANCELLED ARCHIVED }
+enum PlatformRole { OWNER ADMIN SUPPORT FINANCE }
+enum MembershipStatus { INVITED ACTIVE SUSPENDED LEFT }
+enum InvitationStatus { PENDING ACCEPTED EXPIRED REVOKED }
+enum AuditActorType { USER SYSTEM }
+enum SemesterType { ODD EVEN }
+enum StudentStatus { ACTIVE GRADUATED TRANSFERRED INACTIVE }
+enum EnrollmentStatus { ACTIVE COMPLETED TRANSFERRED CANCELLED }
+enum AttendanceStatus { PRESENT SICK EXCUSED ABSENT LATE }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
+  id String @id @default(cuid())
+  email String @unique
   emailVerified DateTime?
-  name          String?
-  image         String?
-  passwordHash  String?
-  lastLoginAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
-
+  name String?
+  image String?
+  passwordHash String?
+  lastLoginAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
   platformMembership PlatformMembership?
-  schoolMemberships  SchoolMember[]
-  invitationsSent    Invitation[]          @relation("InvitationSender")
-  auditLogs           AuditLog[]
-  impersonations      ImpersonationSession[]
-
+  schoolMemberships SchoolMember[]
+  invitationsSent Invitation[] @relation("InvitationSender")
+  auditLogs AuditLog[]
+  impersonations ImpersonationSession[]
   @@index([deletedAt])
 }
 
 model PlatformMembership {
-  id        String       @id @default(cuid())
-  userId    String       @unique
-  role      PlatformRole
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
+  id String @id @default(cuid())
+  userId String @unique
+  role PlatformRole
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model School {
-  id                 String       @id @default(cuid())
-  code               String       @unique
-  slug               String       @unique
-  name               String
-  email              String?
-  phone              String?
-  address            String?
-  logoUrl            String?
-  timezone           String       @default("Asia/Jakarta")
-  status             SchoolStatus @default(TRIAL)
-  trialEndsAt        DateTime?
+  id String @id @default(cuid())
+  code String @unique
+  slug String @unique
+  name String
+  email String?
+  phone String?
+  address String?
+  logoUrl String?
+  timezone String @default("Asia/Jakarta")
+  status SchoolStatus @default(TRIAL)
+  trialEndsAt DateTime?
   subscriptionEndsAt DateTime?
-  studentLimit       Int          @default(200)
-  userLimit          Int          @default(20)
-  suspendedAt        DateTime?
-  suspensionReason   String?
-  archivedAt         DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  deletedAt          DateTime?
-
-  settings            SchoolSettings?
-  members             SchoolMember[]
-  roles               Role[]
-  permissions         Permission[]
-  invitations         Invitation[]
-  auditLogs           AuditLog[]
-  impersonations      ImpersonationSession[]
-  academicYears       AcademicYear[]
-  semesters           Semester[]
-  gradeLevels         GradeLevel[]
-  classGroups         ClassGroup[]
+  studentLimit Int @default(200)
+  userLimit Int @default(20)
+  suspendedAt DateTime?
+  suspensionReason String?
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  settings SchoolSettings?
+  members SchoolMember[]
+  roles Role[]
+  permissions Permission[]
+  invitations Invitation[]
+  auditLogs AuditLog[]
+  impersonations ImpersonationSession[]
+  academicYears AcademicYear[]
+  semesters Semester[]
+  gradeLevels GradeLevel[]
+  classGroups ClassGroup[]
   homeroomAssignments HomeroomAssignment[]
-  students            Student[]
-  guardians           Guardian[]
-  studentGuardians    StudentGuardian[]
-  enrollments         Enrollment[]
-
+  students Student[]
+  guardians Guardian[]
+  studentGuardians StudentGuardian[]
+  enrollments Enrollment[]
+  attendanceSessions AttendanceSession[]
+  attendanceRecords AttendanceRecord[]
   @@index([status])
   @@index([deletedAt])
 }
 
 model SchoolSettings {
-  id                 String   @id @default(cuid())
-  schoolId           String   @unique
-  receiptPrefix      String   @default("RCT")
-  attendanceTimezone String   @default("Asia/Jakarta")
-  defaultLocale      String   @default("id-ID")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
+  id String @id @default(cuid())
+  schoolId String @unique
+  receiptPrefix String @default("RCT")
+  attendanceTimezone String @default("Asia/Jakarta")
+  defaultLocale String @default("id-ID")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model SchoolMember {
-  id        String           @id @default(cuid())
-  schoolId  String
-  userId    String
-  status    MembershipStatus @default(INVITED)
-  joinedAt  DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id String @id @default(cuid())
+  schoolId String
+  userId String
+  status MembershipStatus @default(INVITED)
+  joinedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   deletedAt DateTime?
-
-  school              School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roles               MemberRole[]
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles MemberRole[]
   homeroomAssignments HomeroomAssignment[]
-
+  attendanceSessions AttendanceSession[]
+  attendanceRecords AttendanceRecord[]
   @@unique([schoolId, userId])
   @@index([schoolId, status])
   @@index([userId])
@@ -171,132 +123,116 @@ model SchoolMember {
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  schoolId    String
-  key         String
-  name        String
+  id String @id @default(cuid())
+  schoolId String
+  key String
+  name String
   description String?
-  isSystem    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  isSystem Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   permissions RolePermission[]
-  members     MemberRole[]
-
+  members MemberRole[]
   @@unique([schoolId, key])
   @@index([schoolId])
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  schoolId    String
-  key         String
+  id String @id @default(cuid())
+  schoolId String
+  key String
   description String?
-  createdAt   DateTime @default(now())
-
-  school School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  roles  RolePermission[]
-
+  createdAt DateTime @default(now())
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  roles RolePermission[]
   @@unique([schoolId, key])
   @@index([schoolId])
 }
 
 model RolePermission {
-  roleId       String
+  roleId String
   permissionId String
-  createdAt    DateTime @default(now())
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
   @@id([roleId, permissionId])
 }
 
 model MemberRole {
   memberId String
-  roleId   String
+  roleId String
   createdAt DateTime @default(now())
-
   member SchoolMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  role   Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
   @@id([memberId, roleId])
   @@index([roleId])
 }
 
 model Invitation {
-  id          String           @id @default(cuid())
-  schoolId    String
-  email       String
-  tokenHash   String           @unique
-  status      InvitationStatus @default(PENDING)
-  expiresAt   DateTime
-  acceptedAt  DateTime?
+  id String @id @default(cuid())
+  schoolId String
+  email String
+  tokenHash String @unique
+  status InvitationStatus @default(PENDING)
+  expiresAt DateTime
+  acceptedAt DateTime?
   invitedById String
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  invitedBy User   @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
-
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invitedBy User @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
   @@index([schoolId, email])
   @@index([status, expiresAt])
 }
 
 model AcademicYear {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String
+  id String @id @default(cuid())
+  schoolId String
+  name String
   startDate DateTime
-  endDate   DateTime
-  isActive  Boolean  @default(false)
+  endDate DateTime
+  isActive Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  semesters   Semester[]
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  semesters Semester[]
   classGroups ClassGroup[]
   enrollments Enrollment[]
-
   @@unique([schoolId, name])
   @@index([schoolId, isActive])
   @@index([schoolId, startDate])
 }
 
 model Semester {
-  id             String       @id @default(cuid())
-  schoolId       String
+  id String @id @default(cuid())
+  schoolId String
   academicYearId String
-  type           SemesterType
-  name           String
-  startDate      DateTime
-  endDate        DateTime
-  isActive       Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  type SemesterType
+  name String
+  startDate DateTime
+  endDate DateTime
+  isActive Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-
   @@unique([academicYearId, type])
   @@index([schoolId, isActive])
   @@index([academicYearId, startDate])
 }
 
 model GradeLevel {
-  id        String   @id @default(cuid())
-  schoolId  String
-  code      String
-  name      String
-  order     Int
-  isActive  Boolean  @default(true)
+  id String @id @default(cuid())
+  schoolId String
+  code String
+  name String
+  order Int
+  isActive Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   classGroups ClassGroup[]
-
   @@unique([schoolId, code])
   @@unique([schoolId, name])
   @@index([schoolId, order])
@@ -304,65 +240,61 @@ model GradeLevel {
 }
 
 model ClassGroup {
-  id             String   @id @default(cuid())
-  schoolId       String
+  id String @id @default(cuid())
+  schoolId String
   academicYearId String
-  gradeLevelId   String
-  name           String
-  capacity       Int      @default(36)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  school              School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  academicYear        AcademicYear           @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  gradeLevel          GradeLevel             @relation(fields: [gradeLevelId], references: [id], onDelete: Restrict)
+  gradeLevelId String
+  name String
+  capacity Int @default(36)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  gradeLevel GradeLevel @relation(fields: [gradeLevelId], references: [id], onDelete: Restrict)
   homeroomAssignments HomeroomAssignment[]
-  enrollments         Enrollment[]
-
+  enrollments Enrollment[]
+  attendanceSessions AttendanceSession[]
   @@unique([academicYearId, name])
   @@index([schoolId, isActive])
   @@index([academicYearId, gradeLevelId])
 }
 
 model HomeroomAssignment {
-  id             String   @id @default(cuid())
-  schoolId       String
-  classGroupId   String
+  id String @id @default(cuid())
+  schoolId String
+  classGroupId String
   schoolMemberId String
-  startedAt      DateTime @default(now())
-  endedAt        DateTime?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   schoolMember SchoolMember @relation(fields: [schoolMemberId], references: [id], onDelete: Restrict)
-
   @@index([schoolId, isActive])
   @@index([classGroupId, isActive])
   @@index([schoolMemberId, isActive])
 }
 
 model Student {
-  id          String        @id @default(cuid())
-  schoolId    String
-  nis         String
-  nisn        String?
-  name        String
-  gender      String?
-  birthPlace  String?
-  birthDate   DateTime?
-  status      StudentStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  deletedAt   DateTime?
-
-  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  guardians   StudentGuardian[]
+  id String @id @default(cuid())
+  schoolId String
+  nis String
+  nisn String?
+  name String
+  gender String?
+  birthPlace String?
+  birthDate DateTime?
+  status StudentStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  guardians StudentGuardian[]
   enrollments Enrollment[]
-
+  attendanceRecords AttendanceRecord[]
   @@unique([schoolId, nis])
   @@unique([schoolId, nisn])
   @@index([schoolId, status])
@@ -371,102 +303,128 @@ model Student {
 }
 
 model Guardian {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String
-  phone     String?
-  email     String?
-  address   String?
+  id String @id @default(cuid())
+  schoolId String
+  name String
+  phone String?
+  email String?
+  address String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
-
-  school   School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   students StudentGuardian[]
-
   @@index([schoolId, name])
   @@index([schoolId, phone])
   @@index([deletedAt])
 }
 
 model StudentGuardian {
-  id           String   @id @default(cuid())
-  schoolId     String
-  studentId    String
-  guardianId   String
+  id String @id @default(cuid())
+  schoolId String
+  studentId String
+  guardianId String
   relationship String
-  isPrimary    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  school   School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  isPrimary Boolean @default(false)
+  createdAt DateTime @default(now())
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   guardian Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
-
   @@unique([studentId, guardianId])
   @@index([schoolId, studentId])
   @@index([schoolId, guardianId])
 }
 
 model Enrollment {
-  id             String           @id @default(cuid())
-  schoolId       String
-  studentId      String
+  id String @id @default(cuid())
+  schoolId String
+  studentId String
   academicYearId String
-  classGroupId   String
-  status         EnrollmentStatus @default(ACTIVE)
-  startedAt      DateTime         @default(now())
-  endedAt        DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  classGroupId String
+  status EnrollmentStatus @default(ACTIVE)
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
-
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
   @@unique([studentId, academicYearId])
   @@index([schoolId, status])
   @@index([classGroupId, status])
 }
 
+model AttendanceSession {
+  id String @id @default(cuid())
+  schoolId String
+  classGroupId String
+  date DateTime
+  submittedById String
+  submittedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  submittedBy SchoolMember @relation(fields: [submittedById], references: [id], onDelete: Restrict)
+  records AttendanceRecord[]
+  @@unique([classGroupId, date])
+  @@index([schoolId, date])
+}
+
+model AttendanceRecord {
+  id String @id @default(cuid())
+  schoolId String
+  sessionId String
+  studentId String
+  status AttendanceStatus @default(PRESENT)
+  note String?
+  recordedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  recordedBy SchoolMember @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  @@unique([sessionId, studentId])
+  @@index([schoolId, status])
+  @@index([studentId, createdAt])
+}
+
 model AuditLog {
-  id         String         @id @default(cuid())
-  schoolId   String?
-  actorId    String?
-  actorType  AuditActorType @default(USER)
-  action     String
+  id String @id @default(cuid())
+  schoolId String?
+  actorId String?
+  actorType AuditActorType @default(USER)
+  action String
   entityType String
-  entityId   String?
-  reason     String?
-  oldValue   Json?
-  newValue   Json?
-  metadata   Json?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime       @default(now())
-
+  entityId String?
+  reason String?
+  oldValue Json?
+  newValue Json?
+  metadata Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
   school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  actor  User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
-
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
   @@index([schoolId, createdAt])
   @@index([actorId, createdAt])
   @@index([entityType, entityId])
 }
 
 model ImpersonationSession {
-  id        String   @id @default(cuid())
-  schoolId  String
-  actorId   String
-  reason    String
+  id String @id @default(cuid())
+  schoolId String
+  actorId String
+  reason String
   ticketRef String?
   startedAt DateTime @default(now())
   expiresAt DateTime
-  endedAt   DateTime?
+  endedAt DateTime?
   createdAt DateTime @default(now())
-
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  actor  User   @relation(fields: [actorId], references: [id], onDelete: Restrict)
-
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
   @@index([schoolId, startedAt])
   @@index([actorId, startedAt])
 }
