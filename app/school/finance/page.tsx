@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-import { createFeeCategory, createInvoice, recordPayment } from "./actions";
+import { createFeeCategory, createInvoice, recordPayment, voidInvoice, voidPayment } from "./actions";
 
 const errorMessages: Record<string, string> = {
   "invalid-category": "Data kategori tagihan belum valid.",
@@ -12,7 +12,10 @@ const errorMessages: Record<string, string> = {
   "invalid-invoice": "Data invoice atau tanggal jatuh tempo belum valid.",
   "invalid-payment": "Data pembayaran belum valid.",
   "reference-not-found": "Siswa atau kategori tagihan tidak ditemukan.",
-  "invoice-not-found": "Invoice tidak ditemukan atau sudah lunas.",
+  "invoice-not-found": "Invoice tidak ditemukan atau sudah lunas/dibatalkan.",
+  "payment-not-found": "Pembayaran tidak ditemukan.",
+  "invoice-has-payment": "Invoice yang sudah memiliki pembayaran tidak dapat dibatalkan. Batalkan pembayaran terlebih dahulu.",
+  "reason-required": "Alasan pembatalan wajib diisi minimal 5 karakter.",
   overpayment: "Nominal pembayaran melebihi sisa tagihan.",
 };
 
@@ -24,22 +27,12 @@ function dateInput(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
-export default async function FinancePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
   const session = await auth();
   if (!session?.user?.id || !session.user.schoolId) redirect("/login");
 
   const member = await prisma.schoolMember.findFirst({
-    where: {
-      schoolId: session.user.schoolId,
-      userId: session.user.id,
-      status: "ACTIVE",
-      deletedAt: null,
-      roles: { some: { role: { key: { in: ["school-owner", "school-admin", "principal", "finance"] } } } },
-    },
+    where: { schoolId: session.user.schoolId, userId: session.user.id, status: "ACTIVE", deletedAt: null, roles: { some: { role: { key: { in: ["school-owner", "school-admin", "principal", "finance"] } } } } },
     select: { id: true },
   });
   if (!member) redirect("/school?error=forbidden");
@@ -49,18 +42,8 @@ export default async function FinancePage({
     searchParams,
     prisma.feeCategory.findMany({ where: { schoolId, isActive: true }, orderBy: { name: "asc" } }),
     prisma.student.findMany({ where: { schoolId, deletedAt: null, status: "ACTIVE" }, orderBy: { name: "asc" } }),
-    prisma.invoice.findMany({
-      where: { schoolId },
-      include: { student: true, items: { include: { feeCategory: true } }, allocations: true },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    prisma.payment.findMany({
-      where: { schoolId },
-      include: { allocations: { include: { invoice: { include: { student: true } } } }, recordedBy: { include: { user: true } } },
-      orderBy: { paidAt: "desc" },
-      take: 50,
-    }),
+    prisma.invoice.findMany({ where: { schoolId }, include: { student: true, items: { include: { feeCategory: true } }, allocations: true }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.payment.findMany({ where: { schoolId }, include: { allocations: { include: { invoice: { include: { student: true } } } }, recordedBy: { include: { user: true } } }, orderBy: { paidAt: "desc" }, take: 50 }),
   ]);
 
   const issued = invoices.filter((item) => item.status !== "VOID");
@@ -76,11 +59,8 @@ export default async function FinancePage({
   return (
     <div className="admin-page">
       <header className="page-header">
-        <div>
-          <span className="eyebrow">Keuangan sekolah</span>
-          <h1>Tagihan dan Pembayaran</h1>
-          <p>Terbitkan invoice siswa, catat pembayaran, pantau tunggakan, dan cetak kuitansi.</p>
-        </div>
+        <div><span className="eyebrow">Keuangan sekolah</span><h1>Tagihan dan Pembayaran</h1><p>Terbitkan invoice siswa, catat pembayaran, pantau tunggakan, dan cetak kuitansi.</p></div>
+        <div><Link href="/school/finance/bulk">Invoice Massal</Link> · <Link href="/school/finance/reports">Laporan Keuangan</Link></div>
       </header>
 
       {params.error ? <section className="panel section-panel"><strong>Gagal:</strong> {errorMessages[params.error] ?? "Terjadi kesalahan."}</section> : null}
@@ -107,12 +87,8 @@ export default async function FinancePage({
         <h2>Terbitkan Invoice</h2>
         {categories.length === 0 || students.length === 0 ? <p>Buat kategori dan siswa aktif terlebih dahulu.</p> : (
           <form action={createInvoice} className="admin-form">
-            <label>Siswa
-              <select name="studentId" required defaultValue=""><option value="" disabled>Pilih siswa</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.nis}</option>)}</select>
-            </label>
-            <label>Kategori
-              <select name="feeCategoryId" required defaultValue=""><option value="" disabled>Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.code} · {category.name}</option>)}</select>
-            </label>
+            <label>Siswa<select name="studentId" required defaultValue=""><option value="" disabled>Pilih siswa</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.nis}</option>)}</select></label>
+            <label>Kategori<select name="feeCategoryId" required defaultValue=""><option value="" disabled>Pilih kategori</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.code} · {category.name}</option>)}</select></label>
             <label>Judul tagihan<input name="title" placeholder="SPP Juli 2026" required /></label>
             <label>Nominal rupiah<input name="amount" inputMode="numeric" placeholder="500000" required /></label>
             <label>Tanggal terbit<input name="issueDate" type="date" defaultValue={today} required /></label>
@@ -127,14 +103,10 @@ export default async function FinancePage({
         <h2>Catat Pembayaran</h2>
         {openInvoices.length === 0 ? <p>Tidak ada invoice terbuka.</p> : (
           <form action={recordPayment} className="admin-form">
-            <label>Invoice
-              <select name="invoiceId" required defaultValue=""><option value="" disabled>Pilih invoice</option>{openInvoices.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} · {invoice.student.name} · sisa {rupiah(invoice.totalAmount.minus(invoice.paidAmount))}</option>)}</select>
-            </label>
+            <label>Invoice<select name="invoiceId" required defaultValue=""><option value="" disabled>Pilih invoice</option>{openInvoices.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} · {invoice.student.name} · sisa {rupiah(invoice.totalAmount.minus(invoice.paidAmount))}</option>)}</select></label>
             <label>Nominal<input name="amount" inputMode="numeric" required /></label>
             <label>Tanggal bayar<input name="paidAt" type="date" defaultValue={today} required /></label>
-            <label>Metode
-              <select name="method" defaultValue="CASH"><option value="CASH">Tunai</option><option value="TRANSFER">Transfer</option><option value="QRIS">QRIS</option><option value="OTHER">Lainnya</option></select>
-            </label>
+            <label>Metode<select name="method" defaultValue="CASH"><option value="CASH">Tunai</option><option value="TRANSFER">Transfer</option><option value="QRIS">QRIS</option><option value="OTHER">Lainnya</option></select></label>
             <label>Referensi<input name="reference" placeholder="Nomor transfer atau referensi" /></label>
             <label>Catatan<textarea name="note" rows={2} /></label>
             <button className="primary-button" type="submit">Simpan dan Cetak Kuitansi</button>
@@ -144,39 +116,28 @@ export default async function FinancePage({
 
       <section className="panel section-panel">
         <h2>Daftar Invoice</h2>
-        {invoices.length === 0 ? <p>Belum ada invoice.</p> : (
-          <div className="stats-grid">
-            {invoices.map((invoice) => (
-              <article key={invoice.id}>
-                <span>{invoice.number} · {invoice.status}</span>
-                <strong>{invoice.student.name}</strong>
-                <p>{invoice.title}</p>
-                <p>Total {rupiah(invoice.totalAmount)} · Dibayar {rupiah(invoice.paidAmount)} · Sisa {rupiah(invoice.totalAmount.minus(invoice.paidAmount))}</p>
-                <p>Jatuh tempo {invoice.dueDate.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
-              </article>
-            ))}
-          </div>
-        )}
+        {invoices.length === 0 ? <p>Belum ada invoice.</p> : <div className="stats-grid">{invoices.map((invoice) => (
+          <article key={invoice.id}>
+            <span>{invoice.number} · {invoice.status}</span><strong>{invoice.student.name}</strong><p>{invoice.title}</p>
+            <p>Total {rupiah(invoice.totalAmount)} · Dibayar {rupiah(invoice.paidAmount)} · Sisa {rupiah(invoice.totalAmount.minus(invoice.paidAmount))}</p>
+            <p>Jatuh tempo {invoice.dueDate.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
+            {invoice.status !== "VOID" && invoice.paidAmount.equals(0) ? <form action={voidInvoice} className="admin-form"><input type="hidden" name="invoiceId" value={invoice.id} /><label>Alasan pembatalan<input name="reason" minLength={5} required /></label><button type="submit" className="secondary-button">Batalkan Invoice</button></form> : null}
+          </article>
+        ))}</div>}
       </section>
 
       <section className="panel section-panel">
         <h2>Pembayaran Terbaru</h2>
-        {payments.length === 0 ? <p>Belum ada pembayaran.</p> : (
-          <div className="stats-grid">
-            {payments.map((payment) => {
-              const allocation = payment.allocations[0];
-              return (
-                <article key={payment.id}>
-                  <span>{payment.receiptNumber} · {payment.method}</span>
-                  <strong>{rupiah(payment.amount)}</strong>
-                  <p>{allocation ? `${allocation.invoice.student.name} · ${allocation.invoice.number}` : "Tanpa alokasi"}</p>
-                  <p>{payment.paidAt.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })} · dicatat oleh {payment.recordedBy.user.name ?? payment.recordedBy.user.email}</p>
-                  <Link href={`/school/finance/receipts/${payment.id}`}>Buka kuitansi</Link>
-                </article>
-              );
-            })}
-          </div>
-        )}
+        {payments.length === 0 ? <p>Belum ada pembayaran.</p> : <div className="stats-grid">{payments.map((payment) => {
+          const allocation = payment.allocations[0];
+          return <article key={payment.id}>
+            <span>{payment.receiptNumber} · {payment.method}</span><strong>{rupiah(payment.amount)}</strong>
+            <p>{allocation ? `${allocation.invoice.student.name} · ${allocation.invoice.number}` : "Tanpa alokasi"}</p>
+            <p>{payment.paidAt.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })} · dicatat oleh {payment.recordedBy.user.name ?? payment.recordedBy.user.email}</p>
+            <Link href={`/school/finance/receipts/${payment.id}`}>Buka kuitansi</Link>
+            <form action={voidPayment} className="admin-form"><input type="hidden" name="paymentId" value={payment.id} /><label>Alasan pembatalan<input name="reason" minLength={5} required /></label><button type="submit" className="secondary-button">Batalkan Pembayaran</button></form>
+          </article>;
+        })}</div>}
       </section>
     </div>
   );
