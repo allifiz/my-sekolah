@@ -27,6 +27,7 @@ export default async function SchoolLayout({ children }: { children: React.React
           <Link href="/school/students/lifecycle">Siklus Siswa</Link>
           <Link href="/school/students/import">Import & Export</Link>
           <Link href="/school/attendance">Absensi</Link>
+          <Link href="/school/attendance/reports">Rekap Absensi</Link>
           <Link href="/school/members">Anggota</Link>
           <Link href="/school/settings">Pengaturan</Link>
         </nav>
