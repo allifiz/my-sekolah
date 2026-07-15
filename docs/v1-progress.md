@@ -1,13 +1,13 @@
 # V1 Release Progress
 
-_Last updated: 15 July 2026_
+_Last updated: 16 July 2026_
 
 This document is the execution checklist for V1 and must stay aligned with `docs/product-v1.md`.
 
 ## Overall status
 
-- Estimated V1 completion: **48%**
-- Current phase: **Attendance core complete; Finance is next**
+- Estimated V1 completion: **62%**
+- Current phase: **Student, attendance, finance, and communication cores complete; Parent portal is next**
 - Delivery mode during V1: **commit directly to `main`**
 - Production status: **latest deployment pending verification on Vercel**
 
@@ -134,35 +134,46 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 ## 6. Finance
 
 ### Done
-- [ ] Nothing implemented yet
+- [x] Fee category model
+- [x] Billing/invoice model
+- [x] Invoice items
+- [x] Payment recording
+- [x] Payment allocation
+- [x] Receipt numbering and printable receipt
+- [x] Outstanding balance calculation
+- [x] Student billing position and history
+- [x] Finance dashboard
+- [x] Bulk invoice per class group
+- [x] Finance reports and CSV export
+- [x] Invoice cancellation with reason
+- [x] Payment reversal with balance restoration
+- [x] Audit trail for financial changes
 
 ### Remaining
-- [ ] Fee category model
-- [ ] Billing/invoice model
-- [ ] Invoice items
-- [ ] Payment recording
-- [ ] Payment allocation
-- [ ] Receipt numbering and printable receipt
-- [ ] Outstanding balance calculation
-- [ ] Discounts or adjustments required for V1
-- [ ] Student billing history
-- [ ] Finance dashboard
-- [ ] CSV export
-- [ ] Audit trail for financial changes
+- [ ] Discounts and invoice adjustments
+- [ ] Allocate one payment to multiple invoices
+- [ ] Formal print styling for receipts
+- [ ] Concurrent payment transaction tests
+- [ ] Automated tenant and finance-role tests
 
 ## 7. Communication
 
 ### Done
 - [x] Email delivery foundation using Resend
+- [x] Announcement data model and read tracking
+- [x] School-wide announcements
+- [x] Class-targeted announcements
+- [x] Draft, publish, and unpublish lifecycle
+- [x] Scheduled publication and expiry
+- [x] Announcement read visibility
+- [x] Staff announcement feed
+- [x] Communication audit trail
 
 ### Remaining
-- [ ] Announcement model
-- [ ] School-wide announcements
-- [ ] Class-targeted announcements
-- [ ] Publish/unpublish scheduling
-- [ ] Announcement read visibility
-- [ ] Basic notification delivery
-- [ ] Communication audit trail
+- [ ] Email delivery for newly published announcements
+- [ ] Push/in-app notification badge outside the feed
+- [ ] Edit existing announcement content
+- [ ] Automated visibility and scheduling tests
 
 ## 8. Parent portal
 
@@ -187,12 +198,13 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 - [x] Student CSV export
 - [x] Attendance daily and monthly reports
 - [x] Attendance CSV export
+- [x] Finance reports and CSV export
+- [x] Announcement readership counts
 
 ### Remaining
 - [ ] Platform dashboard KPIs
 - [ ] School dashboard KPIs
 - [ ] Audit log screens
-- [ ] Finance reports
 - [ ] Student roster reports
 - [ ] Subscription and tenant health reporting
 
@@ -226,12 +238,11 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 
 ## Recommended execution order
 
-1. **Finance** — billing, payments, receipts, and outstanding balances.
-2. **Communication** — announcements and basic notifications.
-3. **Parent portal** — attendance, billing, and announcement visibility.
-4. **Foundation completion** — members, permissions, subscription enforcement, settings.
-5. **Attendance completion** — school-wide dashboard and hardening.
-6. **Hardening** — tests, security checks, monitoring, backups, pilot, and release.
+1. **Parent portal** — guardian identity, child switcher, attendance, billing, and announcements.
+2. **Foundation completion** — members, permissions, subscription enforcement, and settings.
+3. **Core refinements** — guardian management, academic editing, finance adjustments, and communication notifications.
+4. **Operational visibility** — school/platform dashboards and audit-log screens.
+5. **Hardening** — tests, security checks, monitoring, backups, pilot, and release.
 
 ## V1 release gate
 
@@ -240,8 +251,8 @@ V1 may be released only when all conditions below are true:
 - [ ] One school can complete onboarding without manual database changes.
 - [ ] School staff can manage academic structure, students, guardians, and class assignments.
 - [x] Teachers can submit and correct attendance.
-- [ ] Finance staff can issue bills, record payments, and generate receipts.
-- [ ] School staff can publish announcements.
+- [x] Finance staff can issue bills, record payments, and generate receipts.
+- [x] School staff can publish announcements.
 - [ ] Guardians can securely view their own children’s information.
 - [ ] Tenant isolation and major role boundaries have automated coverage.
 - [ ] Production monitoring and backup procedures are active.
