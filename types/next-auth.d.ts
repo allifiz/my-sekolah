@@ -3,6 +3,7 @@ import "next-auth";
 interface AppUserFields {
   platformRole?: string;
   schoolId?: string;
+  guardianId?: string;
 }
 
 declare module "next-auth" {
