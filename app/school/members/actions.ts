@@ -9,12 +9,15 @@ import { auth } from "@/auth";
 import { sendStaffInvitationEmail } from "@/lib/email/send-staff-invitation";
 import { prisma } from "@/lib/prisma";
 
+const assignableRoleKeys = ["school-admin", "principal", "finance", "teacher", "homeroom-teacher"] as const;
+
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
-  roleKey: z.enum(["school-admin", "principal", "finance", "teacher", "homeroom-teacher"]),
+  roleKey: z.enum(assignableRoleKeys),
 });
 
 const memberSchema = z.object({ memberId: z.string().cuid(), status: z.enum(["ACTIVE", "SUSPENDED", "LEFT"]) });
+const memberRoleSchema = z.object({ memberId: z.string().cuid(), roleKey: z.enum(assignableRoleKeys) });
 
 async function requireOwnerOrAdmin() {
   const session = await auth();
@@ -106,4 +109,41 @@ export async function updateMemberStatus(formData: FormData) {
   await prisma.auditLog.create({ data: { schoolId: actor.schoolId, actorId: actor.actorId, action: "staff.status_updated", entityType: "SchoolMember", entityId: member.id, oldValue: { status: oldStatus }, newValue: { status: parsed.data.status }, metadata: { email: member.user.email } } });
   revalidatePath("/school/members");
   redirect("/school/members?success=member-updated");
+}
+
+export async function updateMemberRole(formData: FormData) {
+  const actor = await requireOwnerOrAdmin();
+  const parsed = memberRoleSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect("/school/members?error=invalid-role");
+
+  const [member, role] = await Promise.all([
+    prisma.schoolMember.findFirst({
+      where: { id: parsed.data.memberId, schoolId: actor.schoolId, deletedAt: null },
+      include: { roles: { include: { role: true } }, user: true },
+    }),
+    prisma.role.findUnique({ where: { schoolId_key: { schoolId: actor.schoolId, key: parsed.data.roleKey } } }),
+  ]);
+  if (!member || !role) redirect("/school/members?error=reference-not-found");
+  if (member.roles.some(({ role: currentRole }) => currentRole.key === "school-owner")) redirect("/school/members?error=owner-role-protected");
+
+  const oldRoles = member.roles.map(({ role: currentRole }) => currentRole.key);
+  await prisma.$transaction([
+    prisma.memberRole.deleteMany({ where: { memberId: member.id } }),
+    prisma.memberRole.create({ data: { memberId: member.id, roleId: role.id } }),
+    prisma.auditLog.create({
+      data: {
+        schoolId: actor.schoolId,
+        actorId: actor.actorId,
+        action: "staff.role_updated",
+        entityType: "SchoolMember",
+        entityId: member.id,
+        oldValue: { roles: oldRoles },
+        newValue: { roles: [role.key] },
+        metadata: { email: member.user.email },
+      },
+    }),
+  ]);
+
+  revalidatePath("/school/members");
+  redirect("/school/members?success=role-updated");
 }
