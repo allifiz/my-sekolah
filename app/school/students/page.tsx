@@ -6,6 +6,7 @@ import { FlashMessage } from "@/components/flash-message";
 import { prisma } from "@/lib/prisma";
 
 import { createGuardian, createStudent, enrollStudent, linkStudentGuardian } from "./actions";
+import { archiveGuardian, cancelEnrollment, unlinkStudentGuardian } from "./delete-actions";
 
 const errorMessages: Record<string, string> = {
   "invalid-student": "Data siswa belum valid.",
@@ -18,6 +19,11 @@ const errorMessages: Record<string, string> = {
   "duplicate-enrollment": "Siswa sudah memiliki enrollment pada tahun ajaran tersebut.",
   "class-full": "Kapasitas rombel sudah penuh.",
   "reference-not-found": "Siswa, wali, atau rombel tidak ditemukan.",
+  "invalid-request": "Permintaan tidak valid.",
+  "relation-not-found": "Relasi siswa dan wali tidak ditemukan.",
+  "enrollment-not-found": "Enrollment aktif tidak ditemukan.",
+  "guardian-not-found": "Data wali tidak ditemukan.",
+  "guardian-still-linked": "Wali masih terhubung dengan siswa. Lepaskan relasinya terlebih dahulu.",
 };
 
 const PAGE_SIZE = 12;
@@ -169,7 +175,31 @@ export default async function StudentsPage({
           <div className="student-list-grid">
             {visibleStudents.map((student) => {
               const currentEnrollment = student.enrollments.find((item) => item.status === "ACTIVE");
-              return <article className="student-card" key={student.id}><div className="student-avatar" aria-hidden="true">{student.name.slice(0, 2).toUpperCase()}</div><div><span>{student.nis}{student.nisn ? ` · NISN ${student.nisn}` : ""}</span><strong>{student.name}</strong><p>{currentEnrollment ? `${currentEnrollment.academicYear.name} · ${currentEnrollment.classGroup.gradeLevel.name} · ${currentEnrollment.classGroup.name}` : "Belum memiliki enrollment aktif"}</p><small>{student.guardians.length === 0 ? "Belum ada wali" : student.guardians.map((item) => `${item.guardian.name} (${item.relationship}${item.isPrimary ? ", utama" : ""})`).join(" · ")}</small></div></article>;
+              return (
+                <article className="student-card" key={student.id}>
+                  <div className="student-avatar" aria-hidden="true">{student.name.slice(0, 2).toUpperCase()}</div>
+                  <div>
+                    <span>{student.nis}{student.nisn ? ` · NISN ${student.nisn}` : ""}</span>
+                    <strong>{student.name}</strong>
+                    <p>{currentEnrollment ? `${currentEnrollment.academicYear.name} · ${currentEnrollment.classGroup.gradeLevel.name} · ${currentEnrollment.classGroup.name}` : "Belum memiliki enrollment aktif"}</p>
+                    {currentEnrollment ? (
+                      <form action={cancelEnrollment}>
+                        <input type="hidden" name="enrollmentId" value={currentEnrollment.id} />
+                        <button type="submit" className="text-button">Batalkan enrollment</button>
+                      </form>
+                    ) : null}
+                    {student.guardians.length === 0 ? <small>Belum ada wali</small> : student.guardians.map((item) => (
+                      <div key={item.id}>
+                        <small>{item.guardian.name} ({item.relationship}{item.isPrimary ? ", utama" : ""})</small>
+                        <form action={unlinkStudentGuardian}>
+                          <input type="hidden" name="relationId" value={item.id} />
+                          <button type="submit" className="text-button">Lepaskan wali</button>
+                        </form>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
             })}
           </div>
         )}
@@ -178,7 +208,23 @@ export default async function StudentsPage({
 
       <section className="panel section-panel">
         <div className="section-heading"><div><h2>Daftar Wali</h2><p>{guardians.length} wali tersimpan.</p></div></div>
-        {guardians.length === 0 ? <div className="empty-state compact-empty"><strong>Belum ada wali</strong><p>Tambahkan data wali melalui formulir di atas.</p></div> : <div className="guardian-card-grid">{guardians.map((guardian) => <article className="guardian-card" key={guardian.id}><span>{guardian.phone ?? guardian.email ?? "Tanpa kontak"}</span><strong>{guardian.name}</strong><p>{guardian._count.students} siswa terhubung</p></article>)}</div>}
+        {guardians.length === 0 ? <div className="empty-state compact-empty"><strong>Belum ada wali</strong><p>Tambahkan data wali melalui formulir di atas.</p></div> : (
+          <div className="guardian-card-grid">
+            {guardians.map((guardian) => (
+              <article className="guardian-card" key={guardian.id}>
+                <span>{guardian.phone ?? guardian.email ?? "Tanpa kontak"}</span>
+                <strong>{guardian.name}</strong>
+                <p>{guardian._count.students} siswa terhubung</p>
+                {guardian._count.students === 0 ? (
+                  <form action={archiveGuardian}>
+                    <input type="hidden" name="guardianId" value={guardian.id} />
+                    <button type="submit" className="text-button">Arsipkan wali</button>
+                  </form>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
