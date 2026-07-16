@@ -19,9 +19,9 @@ export async function deleteFeeCategory(formData: FormData) {
   const actor = await requireFinanceManager();
   const parsed = z.string().cuid().safeParse(formData.get("feeCategoryId"));
   if (!parsed.success) redirect("/school/finance/categories?error=invalid-request");
-  const category = await prisma.feeCategory.findFirst({ where: { id: parsed.data, schoolId: actor.schoolId }, include: { _count: { select: { invoiceItems: true } } } });
+  const category = await prisma.feeCategory.findFirst({ where: { id: parsed.data, schoolId: actor.schoolId }, include: { _count: { select: { items: true } } } });
   if (!category) redirect("/school/finance/categories?error=not-found");
-  if (category._count.invoiceItems > 0) redirect("/school/finance/categories?error=category-in-use");
+  if (category._count.items > 0) redirect("/school/finance/categories?error=category-in-use");
   await prisma.$transaction([
     prisma.feeCategory.delete({ where: { id: category.id } }),
     prisma.auditLog.create({ data: { schoolId: actor.schoolId, actorId: actor.actorId, action: "fee_category.deleted", entityType: "FeeCategory", entityId: category.id, oldValue: { code: category.code, name: category.name, description: category.description } } }),
