@@ -4,22 +4,9 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { hasSchoolAccess } from "@/lib/security/policies";
 
 const credentialsSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
-
-type SchoolAccessData = {
-  status: string;
-  trialEndsAt: Date | null;
-  subscriptionEndsAt: Date | null;
-};
-
-function hasSchoolAccess(school: SchoolAccessData | null | undefined) {
-  if (!school || ["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(school.status)) return false;
-  const now = new Date();
-  if (school.status === "TRIAL" && school.trialEndsAt && school.trialEndsAt < now) return false;
-  if (["ACTIVE", "PAST_DUE"].includes(school.status) && school.subscriptionEndsAt && school.subscriptionEndsAt < now) return false;
-  return true;
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
@@ -52,8 +39,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const guardian = guardianRows[0];
       const platformAccess = Boolean(user.platformMembership?.isActive);
       const schoolMembership = user.schoolMemberships[0];
-      const schoolAccess = hasSchoolAccess(schoolMembership?.school);
-      const guardianAccess = hasSchoolAccess(guardian ? { status: guardian.schoolStatus, trialEndsAt: guardian.trialEndsAt, subscriptionEndsAt: guardian.subscriptionEndsAt } : null);
+      const schoolAccess = Boolean(schoolMembership && hasSchoolAccess(schoolMembership.school));
+      const guardianAccess = Boolean(guardian && hasSchoolAccess({ status: guardian.schoolStatus, trialEndsAt: guardian.trialEndsAt, subscriptionEndsAt: guardian.subscriptionEndsAt }));
       if (!platformAccess && !schoolAccess && !guardianAccess) return null;
       if (!(await compare(parsed.data.password, user.passwordHash))) return null;
       await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
