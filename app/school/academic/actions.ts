@@ -23,6 +23,7 @@ const semesterSchema = z.object({
   startDate: dateString,
   endDate: dateString,
   isActive: z.string().optional(),
+  returnTo: z.string().optional(),
 });
 
 async function requireAcademicManager() {
@@ -46,6 +47,10 @@ async function requireAcademicManager() {
 
 function toDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function academicReturnPath(value: string | undefined, fallback = "/school/academic") {
+  return value?.startsWith("/school/academic") ? value : fallback;
 }
 
 export async function createAcademicYear(formData: FormData) {
@@ -117,29 +122,31 @@ export async function activateAcademicYear(formData: FormData) {
 
   revalidatePath("/school");
   revalidatePath("/school/academic");
+  revalidatePath(`/school/academic/${year.id}`);
 }
 
 export async function createSemester(formData: FormData) {
   const actor = await requireAcademicManager();
   const parsed = semesterSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) redirect("/school/academic?error=invalid-semester");
+  const returnTo = academicReturnPath(typeof formData.get("returnTo") === "string" ? String(formData.get("returnTo")) : undefined);
+  if (!parsed.success) redirect(`${returnTo}?error=invalid-semester`);
 
   const academicYear = await prisma.academicYear.findFirst({
     where: { id: parsed.data.academicYearId, schoolId: actor.schoolId },
   });
-  if (!academicYear) redirect("/school/academic?error=year-not-found");
+  if (!academicYear) redirect(`${returnTo}?error=year-not-found`);
 
   const startDate = toDate(parsed.data.startDate);
   const endDate = toDate(parsed.data.endDate);
   if (endDate <= startDate || startDate < academicYear.startDate || endDate > academicYear.endDate) {
-    redirect("/school/academic?error=invalid-semester-range");
+    redirect(`${returnTo}?error=invalid-semester-range`);
   }
 
   const duplicate = await prisma.semester.findUnique({
     where: { academicYearId_type: { academicYearId: academicYear.id, type: parsed.data.type } },
     select: { id: true },
   });
-  if (duplicate) redirect("/school/academic?error=duplicate-semester");
+  if (duplicate) redirect(`${returnTo}?error=duplicate-semester`);
 
   const isActive = parsed.data.isActive === "on";
   const name = parsed.data.type === SemesterType.ODD ? "Ganjil" : "Genap";
@@ -177,7 +184,8 @@ export async function createSemester(formData: FormData) {
 
   revalidatePath("/school");
   revalidatePath("/school/academic");
-  redirect("/school/academic?success=semester-created");
+  revalidatePath(`/school/academic/${academicYear.id}`);
+  redirect(`${returnTo}?success=semester-created`);
 }
 
 export async function activateSemester(formData: FormData) {
@@ -210,4 +218,5 @@ export async function activateSemester(formData: FormData) {
 
   revalidatePath("/school");
   revalidatePath("/school/academic");
+  revalidatePath(`/school/academic/${semester.academicYearId}`);
 }

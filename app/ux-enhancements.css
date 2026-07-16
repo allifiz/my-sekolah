@@ -1,0 +1,21 @@
+.danger-button { min-height: 42px; padding: 0 17px; border: 1px solid var(--danger); border-radius: 10px; background: var(--danger); color: white; cursor: pointer; font-weight: 750; }
+.danger-button:hover { background: #912018; border-color: #912018; transform: translateY(-1px); }
+button:disabled { cursor: not-allowed; opacity: .48; transform: none !important; }
+.app-dialog { width: min(100% - 28px, 560px); max-height: min(88vh, 760px); padding: 0; border: 0; border-radius: 20px; background: transparent; overflow: visible; }
+.app-dialog::backdrop { background: rgba(15, 23, 42, .58); backdrop-filter: blur(5px); }
+.dialog-card { overflow-y: auto; max-height: min(88vh, 760px); padding: 26px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.dialog-card-wide { width: min(100%, 660px); }
+.dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.dialog-heading h2 { margin-bottom: 7px; }
+.dialog-heading p { margin-bottom: 0; color: var(--muted); }
+.dialog-icon { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border-radius: 999px; background: var(--danger-soft); color: var(--danger); font-size: 1.2rem; font-weight: 900; }
+.dialog-close { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer; font-size: 1.4rem; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.context-card { display: block; padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.context-card:hover { border-color: #a5b4fc; box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.context-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.context-card p { margin: 8px 0 0; color: var(--muted); }
+.context-card small { color: var(--muted); }
+.context-list { display: grid; gap: 14px; }
+.inline-note { padding: 12px 14px; border: 1px solid #fedf89; border-radius: 10px; background: var(--warning-soft); color: var(--warning); font-size: .86rem; }
+@media (max-width: 620px) { .dialog-card { padding: 20px; } .dialog-actions { flex-direction: column-reverse; } .dialog-actions button { width: 100%; } .context-card-head { flex-direction: column; } }
