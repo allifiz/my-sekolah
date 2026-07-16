@@ -9,10 +9,19 @@ async function main() {
     throw new Error("DATABASE_URL dan DIRECT_URL wajib tersedia untuk bootstrap database baru.");
   }
 
-  execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", ["prisma", "db", "push", "--skip-generate"], {
+execFileSync(
+  process.execPath,
+  [
+    require.resolve("prisma/build/index.js"),
+    "db",
+    "push",
+    "--skip-generate",
+  ],
+  {
     stdio: "inherit",
     env: process.env,
-  });
+  },
+);
 
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "Invitation"
