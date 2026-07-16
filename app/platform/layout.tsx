@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth, signOut } from "@/auth";
+import { ResponsiveSidebar } from "@/components/responsive-sidebar";
 
 export default async function PlatformLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await auth();
@@ -10,7 +11,7 @@ export default async function PlatformLayout({ children }: Readonly<{ children: 
 
   return (
     <div className="admin-layout">
-      <aside className="admin-sidebar">
+      <ResponsiveSidebar>
         <Link href="/platform" className="admin-brand">
           <span className="brand-mark">MS</span>
           <span><strong>My Sekolah</strong><small>Platform Admin</small></span>
@@ -28,7 +29,7 @@ export default async function PlatformLayout({ children }: Readonly<{ children: 
         <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
           <button type="submit" className="secondary-button">Keluar</button>
         </form>
-      </aside>
+      </ResponsiveSidebar>
       <main className="admin-main">{children}</main>
     </div>
   );
