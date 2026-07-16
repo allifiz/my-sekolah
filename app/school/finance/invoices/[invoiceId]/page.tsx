@@ -52,7 +52,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: { para
       <section className="panel section-panel">
         <div className="section-heading"><div><h2>Detail invoice</h2><p>Informasi penerbitan dan item tagihan.</p></div><span className={`status-badge status-${invoice.status.toLowerCase()}`}>{invoice.status}</span></div>
         <dl className="definition-list"><div><dt>Siswa</dt><dd>{invoice.student.name} · NIS {invoice.student.nis}</dd></div><div><dt>Tanggal terbit</dt><dd>{invoice.issueDate.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</dd></div><div><dt>Jatuh tempo</dt><dd>{invoice.dueDate.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</dd></div><div><dt>Dibuat oleh</dt><dd>{invoice.createdBy.user.name ?? invoice.createdBy.user.email}</dd></div><div><dt>Catatan</dt><dd>{invoice.description ?? "—"}</dd></div></dl>
-        <div className="table-scroll"><table className="data-table"><thead><tr><th>Kategori</th><th>Deskripsi</th><th>Nominal</th></tr></thead><tbody>{invoice.items.map((item) => <tr key={item.id}><td>{item.feeCategory.code} · {item.feeCategory.name}</td><td>{item.description}</td><td>{rupiah(item.totalAmount)}</td></tr>)}</tbody></table></div>
+        <div className="table-scroll"><table className="data-table"><thead><tr><th>Kategori</th><th>Deskripsi</th><th>Nominal</th></tr></thead><tbody>{invoice.items.map((item) => <tr key={item.id}><td>{item.feeCategory ? `${item.feeCategory.code} · ${item.feeCategory.name}` : "Tanpa kategori"}</td><td>{item.description}</td><td>{rupiah(item.totalAmount)}</td></tr>)}</tbody></table></div>
       </section>
 
       <aside className="panel section-panel">
