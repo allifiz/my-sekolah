@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { GlobalActionGuard } from "@/components/global-action-guard";
+
 import "./globals.css";
 import "./ui-polish.css";
 import "./final-polish.css";
@@ -16,7 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>
+        {children}
+        <GlobalActionGuard />
+      </body>
     </html>
   );
 }
