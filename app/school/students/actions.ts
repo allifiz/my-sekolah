@@ -49,6 +49,11 @@ const enrollmentSchema = z.object({
   classGroupId: z.string().cuid(),
 });
 
+const bulkEnrollmentSchema = z.object({
+  classGroupId: z.string().cuid(),
+  studentIds: z.array(z.string().cuid()).min(1).max(200),
+});
+
 async function requireStudentManager() {
   const session = await auth();
   if (!session?.user?.id || !session.user.schoolId) redirect("/login");
@@ -252,4 +257,82 @@ export async function enrollStudent(formData: FormData) {
 
   revalidatePath("/school/students");
   redirect("/school/students?success=enrolled");
+}
+
+export async function bulkEnrollStudents(formData: FormData) {
+  const actor = await requireStudentManager();
+  const parsed = bulkEnrollmentSchema.safeParse({
+    classGroupId: formData.get("classGroupId"),
+    studentIds: Array.from(new Set(formData.getAll("studentIds").map(String))),
+  });
+  if (!parsed.success) redirect("/school/students?enrollment=without&error=invalid-bulk-enrollment");
+
+  const classGroup = await prisma.classGroup.findFirst({
+    where: { id: parsed.data.classGroupId, schoolId: actor.schoolId, isActive: true },
+    include: { academicYear: true, gradeLevel: true },
+  });
+  if (!classGroup) redirect("/school/students?enrollment=without&error=reference-not-found");
+
+  const students = await prisma.student.findMany({
+    where: {
+      id: { in: parsed.data.studentIds },
+      schoolId: actor.schoolId,
+      deletedAt: null,
+      status: "ACTIVE",
+    },
+    select: { id: true, name: true, nis: true },
+  });
+  if (students.length !== parsed.data.studentIds.length) {
+    redirect("/school/students?enrollment=without&error=bulk-student-invalid");
+  }
+
+  const [existingEnrollments, activeCount] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: {
+        schoolId: actor.schoolId,
+        studentId: { in: parsed.data.studentIds },
+        academicYearId: classGroup.academicYearId,
+      },
+      select: { studentId: true },
+    }),
+    prisma.enrollment.count({ where: { classGroupId: classGroup.id, status: "ACTIVE" } }),
+  ]);
+
+  if (existingEnrollments.length > 0) {
+    redirect(`/school/students?enrollment=without&error=bulk-enrollment-conflict&count=${existingEnrollments.length}`);
+  }
+  if (activeCount + students.length > classGroup.capacity) {
+    const available = Math.max(0, classGroup.capacity - activeCount);
+    redirect(`/school/students?enrollment=without&error=bulk-class-full&available=${available}`);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.enrollment.createMany({
+      data: students.map((student) => ({
+        schoolId: actor.schoolId,
+        studentId: student.id,
+        academicYearId: classGroup.academicYearId,
+        classGroupId: classGroup.id,
+      })),
+    });
+    await tx.auditLog.create({
+      data: {
+        schoolId: actor.schoolId,
+        actorId: actor.actorId,
+        action: "enrollment.bulk_created",
+        entityType: "ClassGroup",
+        entityId: classGroup.id,
+        newValue: {
+          academicYear: classGroup.academicYear.name,
+          classGroup: `${classGroup.gradeLevel.name} · ${classGroup.name}`,
+          studentCount: students.length,
+          students: students.map((student) => ({ id: student.id, nis: student.nis, name: student.name })),
+        },
+      },
+    });
+  });
+
+  revalidatePath("/school/students");
+  revalidatePath(`/school/homerooms/${classGroup.id}`);
+  redirect(`/school/students?enrollment=without&success=bulk-enrolled&count=${students.length}`);
 }
