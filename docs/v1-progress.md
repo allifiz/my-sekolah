@@ -6,8 +6,8 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 
 ## Overall status
 
-- Estimated V1 completion: **80%**
-- Current phase: **Core product complete; foundation hardening and release readiness remain**
+- Estimated V1 completion: **84%**
+- Current phase: **Core product and operational visibility complete; automated coverage and production hardening remain**
 - Delivery mode during V1: **commit directly to `main`**
 - Production status: **latest deployment pending verification on Vercel**
 
@@ -28,6 +28,7 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 - [x] Login enforcement for suspended, cancelled, and archived schools
 - [x] Trial and subscription expiry enforcement for staff and guardians
 - [x] User-limit enforcement during staff invitation and activation
+- [x] Platform tenant-health dashboard with status, expiry, capacity, and activity risk indicators
 
 ### Remaining
 - [ ] Platform admin subscription and limit management UI
@@ -101,7 +102,6 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 - [x] Daily/monthly recap, student history, statistics, and CSV export
 
 ### Remaining
-- [ ] School-wide attendance dashboard
 - [ ] Cross-month student history
 - [ ] Alerts and anomaly indicators
 - [ ] Automated attendance tests
@@ -160,13 +160,16 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 ### Done
 - [x] Student, attendance, and finance reports/exports
 - [x] Announcement readership counts
-- [x] Basic school dashboard foundations
+- [x] School-wide KPI dashboard with students, members, attendance, announcements, billing, and tenant limits
+- [x] School audit-log screen with action filtering and actor visibility
+- [x] Platform dashboard KPIs
+- [x] Subscription and tenant-health reporting
+- [x] Tenant prioritization by status, expiry, capacity, and inactivity risk
 
 ### Remaining
-- [ ] Platform dashboard KPIs
-- [ ] School-wide KPI dashboard
-- [ ] Audit-log screens
-- [ ] Subscription and tenant health reporting
+- [ ] Platform-wide audit log viewer
+- [ ] Drill-down charts and historical trends
+- [ ] Export operational KPI snapshots
 
 ## 10. Release readiness
 
@@ -192,11 +195,10 @@ This document is the execution checklist for V1 and must stay aligned with `docs
 
 ## Recommended execution order
 
-1. **Operational visibility** — audit log screens, school KPIs, and platform tenant health.
-2. **Core refinements** — guardian management, academic editing, and finance adjustments.
-3. **Automated coverage** — tenant isolation, roles, critical journeys, and concurrency.
-4. **Production hardening** — monitoring, backups, legal pages, and security review.
-5. **Pilot and release** — demo tenant, real-school pilot, fixes, scope freeze, and V1 tag.
+1. **Automated coverage** — tenant isolation, roles, critical journeys, and concurrency.
+2. **Production hardening** — monitoring, backups, legal pages, and security review.
+3. **Core refinements** — guardian management, academic editing, and finance adjustments.
+4. **Pilot and release** — demo tenant, real-school pilot, fixes, scope freeze, and V1 tag.
 
 ## V1 release gate
 
