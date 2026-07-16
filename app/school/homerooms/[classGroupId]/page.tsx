@@ -38,7 +38,7 @@ export default async function HomeroomDetailPage({ params, searchParams }: { par
       roles: { some: { role: { key: { in: ["teacher", "homeroom-teacher", "principal", "school-admin"] } } } },
       OR: [{ user: { name: { contains: query, mode: "insensitive" } } }, { user: { email: { contains: query, mode: "insensitive" } } }],
     },
-    include: { user: true, roles: { include: { role: true } }, homeroomAssignments: { where: { isActive: true }, include: { classGroup: true } },
+    include: { user: true, roles: { include: { role: true } }, homeroomAssignments: { where: { isActive: true }, include: { classGroup: true } } },
     orderBy: { user: { name: "asc" } },
     take: 20,
   }) : [];
