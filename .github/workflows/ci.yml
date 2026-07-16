@@ -38,7 +38,8 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - run: npm install --no-audit --no-fund
-      - run: npx prisma migrate deploy
+      - name: Build disposable test database schema
+        run: npx prisma db push --skip-generate
       - run: npm test
       - run: npm run test:integration
       - run: npm run build
