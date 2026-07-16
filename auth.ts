@@ -7,6 +7,20 @@ import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
 
+type SchoolAccessData = {
+  status: string;
+  trialEndsAt: Date | null;
+  subscriptionEndsAt: Date | null;
+};
+
+function hasSchoolAccess(school: SchoolAccessData | null | undefined) {
+  if (!school || ["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(school.status)) return false;
+  const now = new Date();
+  if (school.status === "TRIAL" && school.trialEndsAt && school.trialEndsAt < now) return false;
+  if (["ACTIVE", "PAST_DUE"].includes(school.status) && school.subscriptionEndsAt && school.subscriptionEndsAt < now) return false;
+  return true;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
@@ -17,19 +31,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!parsed.success) return null;
       const user = await prisma.user.findUnique({
         where: { email: parsed.data.email },
-        include: { platformMembership: true, schoolMemberships: { where: { status: "ACTIVE", deletedAt: null, school: { deletedAt: null } }, orderBy: { createdAt: "asc" }, take: 1, include: { school: { select: { id: true, status: true } } } } },
+        include: {
+          platformMembership: true,
+          schoolMemberships: {
+            where: { status: "ACTIVE", deletedAt: null, school: { deletedAt: null } },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+            include: { school: { select: { id: true, status: true, trialEndsAt: true, subscriptionEndsAt: true } } },
+          },
+        },
       });
       if (!user?.passwordHash || user.deletedAt) return null;
-      const guardianRows = await prisma.$queryRaw<Array<{ guardianId: string; schoolId: string; schoolStatus: string }>>`SELECT ga."guardianId",ga."schoolId",s."status"::text AS "schoolStatus" FROM "GuardianAccount" ga JOIN "School" s ON s."id"=ga."schoolId" WHERE ga."userId"=${user.id} LIMIT 1`;
+      const guardianRows = await prisma.$queryRaw<Array<{ guardianId: string; schoolId: string; schoolStatus: string; trialEndsAt: Date | null; subscriptionEndsAt: Date | null }>>`
+        SELECT ga."guardianId", ga."schoolId", s."status"::text AS "schoolStatus", s."trialEndsAt", s."subscriptionEndsAt"
+        FROM "GuardianAccount" ga
+        JOIN "School" s ON s."id" = ga."schoolId"
+        WHERE ga."userId" = ${user.id} AND s."deletedAt" IS NULL
+        LIMIT 1
+      `;
       const guardian = guardianRows[0];
       const platformAccess = Boolean(user.platformMembership?.isActive);
       const schoolMembership = user.schoolMemberships[0];
-      const schoolAccess = Boolean(schoolMembership && !["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(schoolMembership.school.status));
-      const guardianAccess = Boolean(guardian && !["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(guardian.schoolStatus));
+      const schoolAccess = hasSchoolAccess(schoolMembership?.school);
+      const guardianAccess = hasSchoolAccess(guardian ? { status: guardian.schoolStatus, trialEndsAt: guardian.trialEndsAt, subscriptionEndsAt: guardian.subscriptionEndsAt } : null);
       if (!platformAccess && !schoolAccess && !guardianAccess) return null;
       if (!(await compare(parsed.data.password, user.passwordHash))) return null;
       await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-      return { id: user.id, email: user.email, name: user.name, platformRole: user.platformMembership?.role, schoolId: schoolMembership?.schoolId ?? guardian?.schoolId, guardianId: guardian?.guardianId };
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        platformRole: user.platformMembership?.role,
+        schoolId: schoolAccess ? schoolMembership?.schoolId : guardianAccess ? guardian?.schoolId : undefined,
+        guardianId: guardianAccess ? guardian?.guardianId : undefined,
+      };
     },
   })],
   callbacks: {
