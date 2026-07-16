@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "tsx --test tests/policies.test.ts",
+    "test": "tsx --test tests/security-policies.test.ts",
     "test:integration": "tsx --test tests/integration.test.ts",
     "test:e2e": "tsx tests/e2e-smoke.ts",
     "test:all": "npm test && npm run test:integration",
