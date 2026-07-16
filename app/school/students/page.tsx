@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { BulkSelectionControls } from "@/components/bulk-selection-controls";
+import { ConfirmFormSubmit } from "@/components/confirm-form-submit";
 import { FlashMessage } from "@/components/flash-message";
 import { ModalForm } from "@/components/modal-form";
 import { prisma } from "@/lib/prisma";
 
-import { createStudent } from "./actions";
+import { bulkEnrollStudents, createStudent } from "./actions";
 
 const errorMessages: Record<string, string> = {
   "invalid-student": "Data siswa belum valid.",
@@ -19,14 +21,17 @@ const errorMessages: Record<string, string> = {
   "duplicate-enrollment": "Siswa sudah memiliki enrollment pada tahun ajaran tersebut.",
   "class-full": "Kapasitas rombel sudah penuh.",
   "reference-not-found": "Siswa, wali, atau rombel tidak ditemukan.",
+  "invalid-bulk-enrollment": "Pilih minimal satu siswa dan satu rombel tujuan.",
+  "bulk-student-invalid": "Sebagian siswa yang dipilih sudah tidak aktif atau tidak tersedia.",
 };
 
 const PAGE_SIZE = 25;
+const BULK_FORM_ID = "bulk-enrollment-form";
 
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string; q?: string; status?: string; enrollment?: string; page?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; q?: string; status?: string; enrollment?: string; page?: string; count?: string; available?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.schoolId) redirect("/login");
@@ -57,7 +62,7 @@ export default async function StudentsPage({
       : {}),
   };
 
-  const [school, totalStudents, filteredCount, students, activeCount, enrolledCount] = await Promise.all([
+  const [school, totalStudents, filteredCount, students, activeCount, enrolledCount, classGroups] = await Promise.all([
     prisma.school.findUnique({ where: { id: schoolId }, select: { studentLimit: true } }),
     prisma.student.count({ where: { schoolId, deletedAt: null } }),
     prisma.student.count({ where }),
@@ -78,6 +83,15 @@ export default async function StudentsPage({
     }),
     prisma.student.count({ where: { schoolId, deletedAt: null, status: "ACTIVE" } }),
     prisma.student.count({ where: { schoolId, deletedAt: null, enrollments: { some: { status: "ACTIVE" } } } }),
+    prisma.classGroup.findMany({
+      where: { schoolId, isActive: true },
+      include: {
+        academicYear: true,
+        gradeLevel: true,
+        _count: { select: { enrollments: { where: { status: "ACTIVE" } } } },
+      },
+      orderBy: [{ academicYear: { startDate: "desc" } }, { gradeLevel: { order: "asc" } }, { name: "asc" }],
+    }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
@@ -90,6 +104,17 @@ export default async function StudentsPage({
     search.set("page", String(targetPage));
     return `/school/students?${search}`;
   };
+
+  let errorMessage = params.error ? errorMessages[params.error] ?? "Terjadi kesalahan. Periksa data dan coba kembali." : "";
+  if (params.error === "bulk-enrollment-conflict") {
+    errorMessage = `${params.count ?? "Beberapa"} siswa sudah memiliki enrollment pada tahun ajaran rombel tujuan. Tidak ada data yang diubah.`;
+  }
+  if (params.error === "bulk-class-full") {
+    errorMessage = `Kapasitas rombel tidak mencukupi. Sisa kursi saat ini ${params.available ?? "0"}. Tidak ada siswa yang ditempatkan.`;
+  }
+  const successMessage = params.success === "bulk-enrolled"
+    ? `${params.count ?? "Beberapa"} siswa berhasil ditempatkan ke rombel yang sama.`
+    : "Data siswa sudah diperbarui.";
 
   return (
     <div className="admin-page">
@@ -116,14 +141,14 @@ export default async function StudentsPage({
         </div>
       </header>
 
-      {params.error ? <FlashMessage tone="error" title="Perubahan belum tersimpan" message={errorMessages[params.error] ?? "Terjadi kesalahan. Periksa data dan coba kembali."} /> : null}
-      {params.success ? <FlashMessage tone="success" title="Perubahan berhasil" message="Data siswa sudah diperbarui." /> : null}
+      {params.error ? <FlashMessage tone="error" title="Perubahan belum tersimpan" message={errorMessage} /> : null}
+      {params.success ? <FlashMessage tone="success" title="Perubahan berhasil" message={successMessage} /> : null}
 
       <section className="stats-grid">
         <article><span>Total siswa</span><strong>{totalStudents}</strong></article>
         <article><span>Siswa aktif</span><strong>{activeCount}</strong></article>
         <article><span>Enrollment aktif</span><strong>{enrolledCount}</strong></article>
-        <article><span>Sisa kapasitas paket</span><strong>{Math.max(0, (school?.studentLimit ?? 0) - totalStudents)}</strong></article>
+        <article><span>Belum punya rombel</span><strong>{Math.max(0, activeCount - enrolledCount)}</strong></article>
       </section>
 
       <section className="panel section-panel">
@@ -137,29 +162,64 @@ export default async function StudentsPage({
         </form>
       </section>
 
-      <section className="panel table-panel">
-        <div className="section-heading section-panel"><div><h2>Daftar siswa</h2><p>{filteredCount} hasil · halaman {safePage} dari {totalPages}</p></div></div>
-        {students.length === 0 ? (
-          <div className="empty-state"><strong>Siswa tidak ditemukan</strong><p>Ubah kata kunci atau filter, atau tambahkan siswa baru.</p></div>
-        ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead><tr><th>Siswa</th><th>Status</th><th>Enrollment aktif</th><th>Wali</th><th>Aksi</th></tr></thead>
-              <tbody>{students.map((student) => {
-                const current = student.enrollments[0];
-                return <tr key={student.id}>
-                  <td><strong>{student.name}</strong><small>NIS {student.nis}{student.nisn ? ` · NISN ${student.nisn}` : ""}</small></td>
-                  <td><span className={`status-badge status-${student.status.toLowerCase()}`}>{student.status}</span></td>
-                  <td>{current ? <><strong>{current.classGroup.gradeLevel.name} · {current.classGroup.name}</strong><small>{current.academicYear.name}</small></> : <span className="muted-text">Belum ditempatkan</span>}</td>
-                  <td>{student._count.guardians} wali</td>
-                  <td><Link className="primary-button" href={`/school/students/${student.id}`}>Buka workspace</Link></td>
-                </tr>;
-              })}</tbody>
-            </table>
+      <form action={bulkEnrollStudents} id={BULK_FORM_ID}>
+        <section className="panel section-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Penempatan massal ke rombel</h2>
+              <p>Tandai siswa aktif yang belum ditempatkan, pilih satu rombel, lalu simpan sekaligus. Maksimal 200 siswa per proses.</p>
+            </div>
+            {enrollment !== "without" ? <Link className="secondary-button" href="/school/students?status=ACTIVE&enrollment=without">Tampilkan yang belum punya rombel</Link> : null}
           </div>
-        )}
-        {totalPages > 1 ? <nav className="pagination" aria-label="Pagination siswa"><Link href={hrefForPage(Math.max(1, safePage - 1))} aria-disabled={safePage === 1} className={safePage === 1 ? "secondary-button is-disabled" : "secondary-button"}>Sebelumnya</Link><span>Halaman {safePage} dari {totalPages}</span><Link href={hrefForPage(Math.min(totalPages, safePage + 1))} aria-disabled={safePage === totalPages} className={safePage === totalPages ? "secondary-button is-disabled" : "secondary-button"}>Berikutnya</Link></nav> : null}
-      </section>
+          <BulkSelectionControls formId={BULK_FORM_ID} />
+          <div className="filter-toolbar">
+            <label>Rombel tujuan
+              <select name="classGroupId" required defaultValue="">
+                <option value="" disabled>Pilih rombel tujuan</option>
+                {classGroups.map((group) => {
+                  const available = Math.max(0, group.capacity - group._count.enrollments);
+                  return <option key={group.id} value={group.id} disabled={available === 0}>{group.academicYear.name} · {group.gradeLevel.name} · {group.name} · {available} kursi</option>;
+                })}
+              </select>
+            </label>
+            <ConfirmFormSubmit
+              formId={BULK_FORM_ID}
+              triggerLabel="Tempatkan siswa terpilih"
+              title="Tempatkan siswa ke rombel yang sama?"
+              description="Semua siswa yang dicentang akan dibuatkan enrollment pada rombel tujuan. Proses dibatalkan seluruhnya jika ada konflik tahun ajaran atau kapasitas tidak cukup."
+              confirmLabel="Ya, tempatkan semua"
+              disabled={classGroups.length === 0}
+            />
+          </div>
+          {classGroups.length === 0 ? <p className="muted-text">Belum ada rombel aktif yang dapat dipilih.</p> : null}
+        </section>
+
+        <section className="panel table-panel">
+          <div className="section-heading section-panel"><div><h2>Daftar siswa</h2><p>{filteredCount} hasil · halaman {safePage} dari {totalPages}</p></div></div>
+          {students.length === 0 ? (
+            <div className="empty-state"><strong>Siswa tidak ditemukan</strong><p>Ubah kata kunci atau filter, atau tambahkan siswa baru.</p></div>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th aria-label="Pilih siswa">Pilih</th><th>Siswa</th><th>Status</th><th>Enrollment aktif</th><th>Wali</th><th>Aksi</th></tr></thead>
+                <tbody>{students.map((student) => {
+                  const current = student.enrollments[0];
+                  const eligible = student.status === "ACTIVE" && !current;
+                  return <tr key={student.id}>
+                    <td><input type="checkbox" name="studentIds" value={student.id} disabled={!eligible} aria-label={`Pilih ${student.name}`} title={eligible ? "Pilih untuk penempatan massal" : "Hanya siswa aktif tanpa enrollment yang dapat dipilih"} /></td>
+                    <td><strong>{student.name}</strong><small>NIS {student.nis}{student.nisn ? ` · NISN ${student.nisn}` : ""}</small></td>
+                    <td><span className={`status-badge status-${student.status.toLowerCase()}`}>{student.status}</span></td>
+                    <td>{current ? <><strong>{current.classGroup.gradeLevel.name} · {current.classGroup.name}</strong><small>{current.academicYear.name}</small></> : <span className="muted-text">Belum ditempatkan</span>}</td>
+                    <td>{student._count.guardians} wali</td>
+                    <td><Link className="primary-button" href={`/school/students/${student.id}`}>Buka workspace</Link></td>
+                  </tr>;
+                })}</tbody>
+              </table>
+            </div>
+          )}
+          {totalPages > 1 ? <nav className="pagination" aria-label="Pagination siswa"><Link href={hrefForPage(Math.max(1, safePage - 1))} aria-disabled={safePage === 1} className={safePage === 1 ? "secondary-button is-disabled" : "secondary-button"}>Sebelumnya</Link><span>Halaman {safePage} dari {totalPages}</span><Link href={hrefForPage(Math.min(totalPages, safePage + 1))} aria-disabled={safePage === totalPages} className={safePage === totalPages ? "secondary-button is-disabled" : "secondary-button"}>Berikutnya</Link></nav> : null}
+        </section>
+      </form>
     </div>
   );
 }
