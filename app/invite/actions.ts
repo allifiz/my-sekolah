@@ -1,6 +1,6 @@
 "use server";
 
-import { InvitationStatus, MembershipStatus } from "@prisma/client";
+import { InvitationStatus, MembershipStatus, Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
@@ -14,19 +14,40 @@ const acceptSchema = z.object({
   password: z.string().min(12).max(128),
 });
 
+type InvitationWithRole = {
+  id: string;
+  schoolId: string;
+  email: string;
+  status: InvitationStatus;
+  expiresAt: Date;
+  roleKey: string;
+};
+
 export async function acceptInvitation(formData: FormData) {
   const parsed = acceptSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/invite/${String(formData.get("token") ?? "")}?error=invalid`);
 
   const tokenHash = createHash("sha256").update(parsed.data.token).digest("hex");
-  const invitation = await prisma.invitation.findUnique({
-    where: { tokenHash },
-    include: { school: true },
-  });
+  const rows = await prisma.$queryRaw<InvitationWithRole[]>(Prisma.sql`
+    SELECT "id", "schoolId", "email", "status", "expiresAt", "roleKey"
+    FROM "Invitation"
+    WHERE "tokenHash" = ${tokenHash}
+    LIMIT 1
+  `);
+  const invitation = rows[0];
 
   if (!invitation || invitation.status !== InvitationStatus.PENDING || invitation.expiresAt <= new Date()) {
     redirect(`/invite/${parsed.data.token}?error=expired`);
   }
+
+  const [school, role] = await Promise.all([
+    prisma.school.findUnique({ where: { id: invitation.schoolId }, select: { status: true, userLimit: true } }),
+    prisma.role.findUnique({ where: { schoolId_key: { schoolId: invitation.schoolId, key: invitation.roleKey } } }),
+  ]);
+  if (!school || !role || ["SUSPENDED", "CANCELLED", "ARCHIVED"].includes(school.status)) redirect(`/invite/${parsed.data.token}?error=unavailable`);
+
+  const activeMembers = await prisma.schoolMember.count({ where: { schoolId: invitation.schoolId, status: { in: ["ACTIVE", "INVITED"] }, deletedAt: null } });
+  if (activeMembers >= school.userLimit) redirect(`/invite/${parsed.data.token}?error=limit`);
 
   const passwordHash = await hash(parsed.data.password, 12);
   await prisma.$transaction(async (tx) => {
@@ -42,18 +63,9 @@ export async function acceptInvitation(formData: FormData) {
       create: { schoolId: invitation.schoolId, userId: user.id, status: MembershipStatus.ACTIVE, joinedAt: new Date() },
     });
 
-    const ownerRole = await tx.role.findUniqueOrThrow({
-      where: { schoolId_key: { schoolId: invitation.schoolId, key: "school-owner" } },
-    });
-    await tx.memberRole.upsert({
-      where: { memberId_roleId: { memberId: member.id, roleId: ownerRole.id } },
-      update: {},
-      create: { memberId: member.id, roleId: ownerRole.id },
-    });
-    await tx.invitation.update({
-      where: { id: invitation.id },
-      data: { status: InvitationStatus.ACCEPTED, acceptedAt: new Date() },
-    });
+    await tx.memberRole.deleteMany({ where: { memberId: member.id } });
+    await tx.memberRole.create({ data: { memberId: member.id, roleId: role.id } });
+    await tx.invitation.update({ where: { id: invitation.id }, data: { status: InvitationStatus.ACCEPTED, acceptedAt: new Date() } });
     await tx.auditLog.create({
       data: {
         actorId: user.id,
@@ -61,7 +73,7 @@ export async function acceptInvitation(formData: FormData) {
         action: "invitation.accepted",
         entityType: "Invitation",
         entityId: invitation.id,
-        metadata: { email: invitation.email },
+        metadata: { email: invitation.email, roleKey: invitation.roleKey },
       },
     });
   });
