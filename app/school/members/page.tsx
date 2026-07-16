@@ -3,18 +3,20 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-import { inviteStaff, revokeInvitation, updateMemberStatus } from "./actions";
+import { inviteStaff, revokeInvitation, updateMemberRole, updateMemberStatus } from "./actions";
 
 const errors: Record<string, string> = {
   "invalid-invitation": "Data undangan belum valid.",
-  "reference-not-found": "Role atau sekolah tidak ditemukan.",
+  "reference-not-found": "Role, anggota, atau sekolah tidak ditemukan.",
   "user-limit": "Batas pengguna sekolah sudah tercapai.",
   "duplicate-invitation": "Email tersebut masih memiliki undangan aktif.",
   "already-member": "Email tersebut sudah menjadi anggota sekolah.",
   "invitation-not-found": "Undangan tidak ditemukan atau sudah tidak aktif.",
   "invalid-member": "Perubahan status anggota tidak valid.",
+  "invalid-role": "Perubahan role anggota tidak valid.",
   "member-not-found": "Anggota tidak ditemukan.",
   "last-owner": "School Owner aktif terakhir tidak boleh dinonaktifkan.",
+  "owner-role-protected": "Role School Owner dilindungi dan tidak dapat diganti dari halaman ini.",
 };
 
 export default async function SchoolMembersPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string; delivery?: string }> }) {
@@ -41,7 +43,7 @@ export default async function SchoolMembersPage({ searchParams }: { searchParams
 
   return (
     <div className="admin-page">
-      <header className="page-header"><div><span className="eyebrow">Akses sekolah</span><h1>Anggota dan Undangan</h1><p>Kelola staf, role awal, status akses, dan batas pengguna sekolah.</p></div></header>
+      <header className="page-header"><div><span className="eyebrow">Akses sekolah</span><h1>Anggota dan Undangan</h1><p>Kelola staf, role, status akses, dan batas pengguna sekolah.</p></div></header>
       {params.error ? <section className="panel section-panel"><strong>Gagal:</strong> {errors[params.error] ?? "Terjadi kesalahan."}</section> : null}
       {params.success ? <section className="panel section-panel"><strong>Berhasil:</strong> Data anggota sudah diperbarui.{params.delivery === "pending" ? " Email belum terkirim karena layanan email belum tersedia." : ""}</section> : null}
 
@@ -62,18 +64,27 @@ export default async function SchoolMembersPage({ searchParams }: { searchParams
 
       <section className="panel section-panel">
         <h2>Anggota</h2>
-        {members.length === 0 ? <p>Belum ada anggota.</p> : <div className="stats-grid">{members.map((member) => (
-          <article key={member.id}>
-            <span>{member.roles.map(({ role }) => role.name).join(", ") || "Tanpa role"}</span>
-            <strong>{member.user.name ?? member.user.email}</strong>
-            <p>{member.user.email}</p><p>Status: {member.status}</p>
-            {canManage ? <form action={updateMemberStatus} className="admin-form">
-              <input type="hidden" name="memberId" value={member.id} />
-              <select name="status" defaultValue={member.status === "INVITED" ? "ACTIVE" : member.status}><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Ditangguhkan</option><option value="LEFT">Keluar</option></select>
-              <button className="secondary-button" type="submit">Perbarui</button>
-            </form> : null}
-          </article>
-        ))}</div>}
+        {members.length === 0 ? <p>Belum ada anggota.</p> : <div className="stats-grid">{members.map((member) => {
+          const isOwner = member.roles.some(({ role }) => role.key === "school-owner");
+          const currentAssignableRole = member.roles.find(({ role }) => roles.some((option) => option.key === role.key))?.role.key ?? "teacher";
+          return (
+            <article key={member.id}>
+              <span>{member.roles.map(({ role }) => role.name).join(", ") || "Tanpa role"}</span>
+              <strong>{member.user.name ?? member.user.email}</strong>
+              <p>{member.user.email}</p><p>Status: {member.status}</p>
+              {canManage && !isOwner ? <form action={updateMemberRole} className="admin-form">
+                <input type="hidden" name="memberId" value={member.id} />
+                <label>Role<select name="roleKey" defaultValue={currentAssignableRole}>{roles.map((role) => <option key={role.id} value={role.key}>{role.name}</option>)}</select></label>
+                <button className="secondary-button" type="submit">Ubah Role</button>
+              </form> : null}
+              {canManage ? <form action={updateMemberStatus} className="admin-form">
+                <input type="hidden" name="memberId" value={member.id} />
+                <select name="status" defaultValue={member.status === "INVITED" ? "ACTIVE" : member.status}><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Ditangguhkan</option><option value="LEFT">Keluar</option></select>
+                <button className="secondary-button" type="submit">Perbarui Status</button>
+              </form> : null}
+            </article>
+          );
+        })}</div>}
       </section>
 
       <section className="panel section-panel">
