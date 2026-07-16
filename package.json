@@ -19,6 +19,7 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:bootstrap:fresh": "tsx prisma/bootstrap-fresh.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:set-owner-password": "tsx prisma/set-owner-password.ts",
     "db:studio": "prisma studio"
