@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts && tsx prisma/set-owner-password.ts && next build",
+    "test": "tsx --test tests/**/*.test.ts",
+    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts && tsx prisma/set-owner-password.ts && npm test && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
