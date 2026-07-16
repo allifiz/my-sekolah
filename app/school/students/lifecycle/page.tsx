@@ -4,188 +4,87 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-import { changeStudentStatus, endEnrollment, transferEnrollment, updateStudent } from "../lifecycle-actions";
-
-const errorMessages: Record<string, string> = {
-  "invalid-student-update": "Perubahan data siswa belum valid.",
-  "duplicate-student": "NIS atau NISN sudah digunakan siswa lain.",
-  "invalid-status": "Perubahan status siswa belum valid.",
-  "invalid-enrollment-action": "Permintaan mengakhiri enrollment belum valid.",
-  "enrollment-not-found": "Enrollment aktif tidak ditemukan.",
-  "invalid-transfer": "Data perpindahan kelas belum valid.",
-  "transfer-year-mismatch": "Perpindahan hanya dapat dilakukan dalam tahun ajaran yang sama.",
-  "transfer-same-class": "Rombel tujuan sama dengan rombel saat ini.",
-  "class-full": "Kapasitas rombel tujuan sudah penuh.",
-  "reference-not-found": "Siswa, enrollment, atau rombel tidak ditemukan.",
-};
-
-function dateValue(value: Date | null) {
-  return value ? value.toISOString().slice(0, 10) : "";
-}
+const PAGE_SIZE = 30;
 
 export default async function StudentLifecyclePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; enrollment?: string; page?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.schoolId) redirect("/login");
 
+  const params = await searchParams;
+  const q = params.q?.trim() ?? "";
+  const status = params.status?.trim() ?? "";
+  const enrollment = params.enrollment?.trim() ?? "";
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
   const schoolId = session.user.schoolId;
-  const [students, classGroups, params] = await Promise.all([
+
+  const where = {
+    schoolId,
+    deletedAt: null,
+    ...(status ? { status: status as "ACTIVE" | "GRADUATED" | "TRANSFERRED" | "INACTIVE" } : {}),
+    ...(enrollment === "active" ? { enrollments: { some: { status: "ACTIVE" as const } } } : {}),
+    ...(enrollment === "none" ? { enrollments: { none: { status: "ACTIVE" as const } } } : {}),
+    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { nis: { contains: q, mode: "insensitive" as const } }, { nisn: { contains: q, mode: "insensitive" as const } }] } : {}),
+  };
+
+  const [count, students, activeCount, withoutEnrollmentCount] = await Promise.all([
+    prisma.student.count({ where }),
     prisma.student.findMany({
-      where: { schoolId, deletedAt: null },
+      where,
       include: {
         enrollments: {
           where: { status: "ACTIVE" },
           include: { academicYear: true, classGroup: { include: { gradeLevel: true } } },
-          orderBy: { startedAt: "desc" },
+          take: 1,
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ status: "asc" }, { name: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
-    prisma.classGroup.findMany({
-      where: { schoolId, isActive: true },
-      include: {
-        academicYear: true,
-        gradeLevel: true,
-        _count: { select: { enrollments: { where: { status: "ACTIVE" } } } },
-      },
-      orderBy: [
-        { academicYear: { startDate: "desc" } },
-        { gradeLevel: { order: "asc" } },
-        { name: "asc" },
-      ],
-    }),
-    searchParams,
+    prisma.student.count({ where: { schoolId, deletedAt: null, status: "ACTIVE" } }),
+    prisma.student.count({ where: { schoolId, deletedAt: null, enrollments: { none: { status: "ACTIVE" } } } }),
   ]);
 
-  const activeEnrollments = students.flatMap((student) =>
-    student.enrollments.map((enrollment) => ({ student, enrollment })),
-  );
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const hrefForPage = (target: number) => `/school/students/lifecycle?${new URLSearchParams({ ...(q ? { q } : {}), ...(status ? { status } : {}), ...(enrollment ? { enrollment } : {}), page: String(target) })}`;
 
   return (
     <div className="admin-page">
       <header className="page-header">
         <div>
-          <span className="eyebrow">Siklus data siswa</span>
-          <h1>Edit, Status, dan Perpindahan Kelas</h1>
-          <p>Perbarui identitas siswa dan kelola perubahan enrollment dengan alasan serta audit trail.</p>
+          <span className="eyebrow">Antrian siklus siswa</span>
+          <h1>Siklus Siswa</h1>
+          <p>Temukan siswa yang perlu diproses, lalu buka workspace siswa untuk edit profil, ubah status, pindah kelas, atau mengakhiri enrollment.</p>
         </div>
-        <Link href="/school/students" className="secondary-button">Kembali ke Siswa & Wali</Link>
+        <Link href="/school/students" className="secondary-button">Kembali ke Direktori</Link>
       </header>
 
-      {params.error ? (
-        <section className="panel section-panel"><strong>Gagal:</strong> {errorMessages[params.error] ?? "Terjadi kesalahan."}</section>
-      ) : null}
-      {params.success ? (
-        <section className="panel section-panel"><strong>Berhasil:</strong> Siklus data siswa sudah diperbarui.</section>
-      ) : null}
-
       <section className="stats-grid">
-        <article><span>Total siswa</span><strong>{students.length}</strong></article>
-        <article><span>Siswa aktif</span><strong>{students.filter((student) => student.status === "ACTIVE").length}</strong></article>
-        <article><span>Enrollment aktif</span><strong>{activeEnrollments.length}</strong></article>
-        <article><span>Rombel tersedia</span><strong>{classGroups.length}</strong></article>
+        <article><span>Siswa aktif</span><strong>{activeCount}</strong></article>
+        <article><span>Tanpa enrollment aktif</span><strong>{withoutEnrollmentCount}</strong></article>
+        <article><span>Hasil filter</span><strong>{count}</strong></article>
+        <article><span>Per halaman</span><strong>{PAGE_SIZE}</strong></article>
       </section>
 
       <section className="panel section-panel">
-        <h2>Edit Data Siswa</h2>
-        {students.length === 0 ? <p>Belum ada siswa.</p> : students.map((student) => (
-          <details key={student.id} className="panel section-panel">
-            <summary><strong>{student.name}</strong> · {student.nis}</summary>
-            <form action={updateStudent} className="admin-form">
-              <input type="hidden" name="studentId" value={student.id} />
-              <label>NIS<input name="nis" defaultValue={student.nis} required /></label>
-              <label>NISN<input name="nisn" defaultValue={student.nisn ?? ""} /></label>
-              <label>Nama lengkap<input name="name" defaultValue={student.name} required /></label>
-              <label>Jenis kelamin
-                <select name="gender" defaultValue={student.gender ?? ""}>
-                  <option value="">Tidak diisi</option>
-                  <option value="L">Laki-laki</option>
-                  <option value="P">Perempuan</option>
-                </select>
-              </label>
-              <label>Tempat lahir<input name="birthPlace" defaultValue={student.birthPlace ?? ""} /></label>
-              <label>Tanggal lahir<input type="date" name="birthDate" defaultValue={dateValue(student.birthDate)} /></label>
-              <button type="submit" className="primary-button">Simpan Perubahan</button>
-            </form>
-          </details>
-        ))}
+        <div className="section-heading"><div><h2>Filter antrian</h2><p>Tidak ada lagi form untuk seluruh siswa sekaligus. Pilih satu siswa dan kerjakan dalam konteksnya.</p></div></div>
+        <form className="filter-toolbar" method="get">
+          <label className="search-field"><span aria-hidden="true">⌕</span><input name="q" defaultValue={q} placeholder="Nama, NIS, atau NISN..." /></label>
+          <label>Status<select name="status" defaultValue={status}><option value="">Semua status</option><option value="ACTIVE">Aktif</option><option value="GRADUATED">Lulus</option><option value="TRANSFERRED">Pindah sekolah</option><option value="INACTIVE">Nonaktif</option></select></label>
+          <label>Enrollment<select name="enrollment" defaultValue={enrollment}><option value="">Semua</option><option value="active">Ada enrollment aktif</option><option value="none">Tanpa enrollment aktif</option></select></label>
+          <button className="primary-button" type="submit">Terapkan</button>
+          {q || status || enrollment ? <Link href="/school/students/lifecycle" className="text-button">Reset</Link> : null}
+        </form>
       </section>
 
-      <section className="panel section-panel">
-        <h2>Ubah Status Siswa</h2>
-        {students.length === 0 ? <p>Belum ada siswa.</p> : (
-          <form action={changeStudentStatus} className="admin-form">
-            <label>Siswa
-              <select name="studentId" required defaultValue="">
-                <option value="" disabled>Pilih siswa</option>
-                {students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.nis} · {student.status}</option>)}
-              </select>
-            </label>
-            <label>Status baru
-              <select name="status" required defaultValue="ACTIVE">
-                <option value="ACTIVE">Aktif</option>
-                <option value="GRADUATED">Lulus</option>
-                <option value="TRANSFERRED">Pindah sekolah</option>
-                <option value="INACTIVE">Nonaktif</option>
-              </select>
-            </label>
-            <label>Alasan<textarea name="reason" rows={3} required placeholder="Jelaskan alasan perubahan status" /></label>
-            <button type="submit" className="primary-button">Ubah Status</button>
-          </form>
-        )}
-      </section>
-
-      <section className="panel section-panel">
-        <h2>Pindah Rombel</h2>
-        {activeEnrollments.length === 0 || classGroups.length === 0 ? <p>Belum ada enrollment aktif atau rombel tujuan.</p> : (
-          <form action={transferEnrollment} className="admin-form">
-            <label>Enrollment aktif
-              <select name="enrollmentId" required defaultValue="">
-                <option value="" disabled>Pilih siswa</option>
-                {activeEnrollments.map(({ student, enrollment }) => (
-                  <option key={enrollment.id} value={enrollment.id}>
-                    {student.name} · {enrollment.academicYear.name} · {enrollment.classGroup.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>Rombel tujuan
-              <select name="classGroupId" required defaultValue="">
-                <option value="" disabled>Pilih rombel tujuan</option>
-                {classGroups.map((group) => (
-                  <option key={group.id} value={group.id} disabled={group._count.enrollments >= group.capacity}>
-                    {group.academicYear.name} · {group.gradeLevel.name} · {group.name} · {group._count.enrollments}/{group.capacity}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>Alasan<textarea name="reason" rows={3} required placeholder="Contoh: penyesuaian rombel" /></label>
-            <button type="submit" className="primary-button">Pindahkan Siswa</button>
-          </form>
-        )}
-      </section>
-
-      <section className="panel section-panel">
-        <h2>Akhiri Enrollment</h2>
-        {activeEnrollments.length === 0 ? <p>Belum ada enrollment aktif.</p> : (
-          <form action={endEnrollment} className="admin-form">
-            <label>Enrollment aktif
-              <select name="enrollmentId" required defaultValue="">
-                <option value="" disabled>Pilih enrollment</option>
-                {activeEnrollments.map(({ student, enrollment }) => (
-                  <option key={enrollment.id} value={enrollment.id}>
-                    {student.name} · {enrollment.academicYear.name} · {enrollment.classGroup.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>Alasan<textarea name="reason" rows={3} required placeholder="Contoh: kenaikan kelas selesai" /></label>
-            <button type="submit" className="secondary-button">Akhiri Enrollment</button>
-          </form>
-        )}
+      <section className="panel table-panel">
+        {students.length === 0 ? <div className="empty-state"><strong>Tidak ada siswa dalam antrian ini</strong><p>Ubah filter untuk melihat siswa lainnya.</p></div> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Siswa</th><th>Status</th><th>Enrollment aktif</th><th>Tindakan tersedia</th></tr></thead><tbody>{students.map((student) => { const current = student.enrollments[0]; return <tr key={student.id}><td><strong>{student.name}</strong><small>NIS {student.nis}{student.nisn ? ` · NISN ${student.nisn}` : ""}</small></td><td><span className={`status-badge status-${student.status.toLowerCase()}`}>{student.status}</span></td><td>{current ? <><strong>{current.classGroup.gradeLevel.name} · {current.classGroup.name}</strong><small>{current.academicYear.name}</small></> : <span className="muted-text">Belum ada</span>}</td><td><Link className="primary-button" href={`/school/students/${student.id}#lifecycle`}>Buka tindakan</Link></td></tr>; })}</tbody></table></div>}
+        {totalPages > 1 ? <nav className="pagination"><Link href={hrefForPage(Math.max(1, page - 1))} className={page === 1 ? "secondary-button is-disabled" : "secondary-button"}>Sebelumnya</Link><span>Halaman {page} dari {totalPages}</span><Link href={hrefForPage(Math.min(totalPages, page + 1))} className={page === totalPages ? "secondary-button is-disabled" : "secondary-button"}>Berikutnya</Link></nav> : null}
       </section>
     </div>
   );
