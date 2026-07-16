@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { auth, signOut } from "@/auth";
 
 export default async function PlatformLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -17,14 +18,16 @@ export default async function PlatformLayout({ children }: Readonly<{ children: 
         <nav className="admin-nav" aria-label="Navigasi platform">
           <Link href="/platform">Ringkasan</Link>
           <Link href="/platform/schools">Sekolah</Link>
+          <Link href="/account/security">Keamanan Akun</Link>
         </nav>
         <div className="admin-account">
-          <span>{session.user.name ?? session.user.email}</span>
+          <strong>{session.user.name ?? "Platform Admin"}</strong>
+          <small>{session.user.email}</small>
           <small>{session.user.platformRole}</small>
-          <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
-            <button type="submit" className="text-button">Keluar</button>
-          </form>
         </div>
+        <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
+          <button type="submit" className="secondary-button">Keluar</button>
+        </form>
       </aside>
       <main className="admin-main">{children}</main>
     </div>
