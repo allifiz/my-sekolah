@@ -37,22 +37,44 @@ export default async function SchoolDashboardPage() {
 
   return (
     <div className="admin-page">
-      <header className="page-header"><div><span className="eyebrow">Dashboard sekolah</span><h1>{school.name}</h1><p>Selamat datang, {session.user.name ?? session.user.email}. Role: {roles}.</p></div><Link href="/school/audit" className="secondary-button">Buka Audit Log</Link></header>
-      <section className="stats-grid">
-        <article><span>Siswa aktif</span><strong>{activeStudents}</strong><p>{studentUsage}% dari batas {school.studentLimit}</p></article>
-        <article><span>Anggota aktif</span><strong>{activeMembers}</strong><p>{userUsage}% dari batas {school.userLimit}</p></article>
-        <article><span>Absensi hari ini</span><strong>{attendanceToday}</strong><p>sesi rombel tercatat</p></article>
-        <article><span>Pengumuman aktif</span><strong>{Number(activeAnnouncements[0]?.count ?? 0)}</strong></article>
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-inner">
+          <div>
+            <span className="eyebrow">Dashboard sekolah</span>
+            <h1>{school.name}</h1>
+            <p>Selamat datang, {session.user.name ?? session.user.email}. Anda masuk sebagai {roles}.</p>
+          </div>
+          <div className="dashboard-actions">
+            <Link href="/school/attendance" className="primary-button">Catat Absensi</Link>
+            <Link href="/school/audit" className="secondary-button">Buka Audit Log</Link>
+          </div>
+        </div>
       </section>
-      <section className="stats-grid">
-        <article><span>Saldo tagihan</span><strong>{rupiah(outstanding)}</strong></article>
-        <article><span>Tunggakan</span><strong>{rupiah(overdue)}</strong></article>
-        <article><span>Status tenant</span><strong>{school.status}</strong></article>
-        <article><span>Total audit event</span><strong>{auditCount}</strong></article>
+
+      <section className="metric-grid">
+        <article className="metric-card accent"><span>Siswa aktif</span><strong>{activeStudents}</strong><small>{studentUsage}% dari batas {school.studentLimit}</small></article>
+        <article className="metric-card"><span>Anggota aktif</span><strong>{activeMembers}</strong><small>{userUsage}% dari batas {school.userLimit}</small></article>
+        <article className="metric-card success"><span>Absensi hari ini</span><strong>{attendanceToday}</strong><small>sesi rombel tercatat</small></article>
+        <article className="metric-card"><span>Pengumuman aktif</span><strong>{Number(activeAnnouncements[0]?.count ?? 0)}</strong><small>sedang ditampilkan</small></article>
       </section>
+
+      <section className="metric-grid">
+        <article className="metric-card"><span>Saldo tagihan</span><strong>{rupiah(outstanding)}</strong><small>belum lunas</small></article>
+        <article className="metric-card warning"><span>Tunggakan</span><strong>{rupiah(overdue)}</strong><small>melewati jatuh tempo</small></article>
+        <article className="metric-card"><span>Status tenant</span><strong>{school.status}</strong><small>status layanan sekolah</small></article>
+        <article className="metric-card"><span>Total audit event</span><strong>{auditCount}</strong><small>aktivitas tercatat</small></article>
+      </section>
+
+      <section className="quick-links">
+        <Link className="quick-link" href="/school/students"><strong>Kelola siswa</strong><span>Tambah, cari, dan perbarui data siswa.</span></Link>
+        <Link className="quick-link" href="/school/finance"><strong>Kelola tagihan</strong><span>Buat tagihan dan catat pembayaran.</span></Link>
+        <Link className="quick-link" href="/school/announcements"><strong>Buat pengumuman</strong><span>Bagikan informasi ke sekolah atau rombel.</span></Link>
+        <Link className="quick-link" href="/school/members"><strong>Kelola anggota</strong><span>Atur staf, role, dan status akses.</span></Link>
+      </section>
+
       <section className="panel section-panel">
         <div className="section-heading"><div><h2>Aktivitas terbaru</h2><p>Perubahan data dan akses terakhir di sekolah.</p></div><Link href="/school/audit" className="table-link">Lihat semua</Link></div>
-        <div className="tenant-list">{recentAudits.map((log) => <article className="tenant-row" key={log.id}><div><strong>{log.action}</strong><span>{log.entityType} · {log.actor?.name ?? log.actor?.email ?? "SYSTEM"}</span><span>{log.createdAt.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</span></div></article>)}</div>
+        <div className="tenant-list">{recentAudits.length ? recentAudits.map((log) => <article className="tenant-row" key={log.id}><div><strong>{log.action}</strong><span>{log.entityType} · {log.actor?.name ?? log.actor?.email ?? "SYSTEM"}</span><span>{log.createdAt.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</span></div></article>) : <div className="empty-state">Belum ada aktivitas tercatat.</div>}</div>
       </section>
     </div>
   );
