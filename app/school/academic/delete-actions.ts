@@ -15,20 +15,27 @@ async function requireAcademicManager() {
   return { actorId: session.user.id, schoolId: session.user.schoolId };
 }
 
+function academicReturnPath(formData: FormData) {
+  const value = formData.get("returnTo");
+  return typeof value === "string" && value.startsWith("/school/academic") ? value : "/school/academic";
+}
+
 export async function deleteSemester(formData: FormData) {
   const actor = await requireAcademicManager();
+  const returnTo = academicReturnPath(formData);
   const parsed = z.string().cuid().safeParse(formData.get("semesterId"));
-  if (!parsed.success) redirect("/school/academic?error=invalid-request");
+  if (!parsed.success) redirect(`${returnTo}?error=invalid-request`);
   const semester = await prisma.semester.findFirst({ where: { id: parsed.data, schoolId: actor.schoolId } });
-  if (!semester) redirect("/school/academic?error=not-found");
-  if (semester.isActive) redirect("/school/academic?error=active-period");
+  if (!semester) redirect(`${returnTo}?error=not-found`);
+  if (semester.isActive) redirect(`${returnTo}?error=active-period`);
   await prisma.$transaction([
     prisma.semester.delete({ where: { id: semester.id } }),
     prisma.auditLog.create({ data: { schoolId: actor.schoolId, actorId: actor.actorId, action: "semester.deleted", entityType: "Semester", entityId: semester.id, oldValue: { name: semester.name, type: semester.type, startDate: semester.startDate, endDate: semester.endDate } } }),
   ]);
   revalidatePath("/school");
   revalidatePath("/school/academic");
-  redirect("/school/academic?success=semester-deleted");
+  revalidatePath(`/school/academic/${semester.academicYearId}`);
+  redirect(`${returnTo}?success=semester-deleted`);
 }
 
 export async function deleteAcademicYear(formData: FormData) {
