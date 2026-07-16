@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 import { createAnnouncement, publishAnnouncement, unpublishAnnouncement } from "./actions";
+import { deleteDraftAnnouncement } from "./delete-actions";
 
 type AnnouncementRow = {
   id: string;
@@ -34,6 +35,7 @@ const errors: Record<string, string> = {
   "invalid-request": "Permintaan tidak valid.",
   "reason-required": "Alasan minimal lima karakter wajib diisi.",
   "not-found": "Pengumuman tidak ditemukan.",
+  "delete-draft-only": "Hanya pengumuman berstatus draft yang boleh dihapus permanen.",
 };
 
 function localDateTime(date?: Date | null) {
@@ -158,6 +160,12 @@ export default async function AnnouncementsPage({
                     <form action={publishAnnouncement}>
                       <input type="hidden" name="announcementId" value={item.id} />
                       <button className="primary-button" type="submit">Publikasikan</button>
+                    </form>
+                  ) : null}
+                  {item.status === "DRAFT" ? (
+                    <form action={deleteDraftAnnouncement}>
+                      <input type="hidden" name="announcementId" value={item.id} />
+                      <button className="secondary-button" type="submit">Hapus Draft</button>
                     </form>
                   ) : null}
                   {item.status === "PUBLISHED" ? (
