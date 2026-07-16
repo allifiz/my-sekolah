@@ -9,7 +9,7 @@
     "test:integration": "tsx --test tests/integration.test.ts",
     "test:e2e": "tsx tests/e2e-smoke.ts",
     "test:all": "npm test && npm run test:integration",
-    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts && tsx prisma/set-owner-password.ts && npm test && next build",
+    "vercel-build": "prisma migrate deploy && npm test && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
