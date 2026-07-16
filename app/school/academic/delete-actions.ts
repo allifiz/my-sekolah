@@ -40,12 +40,11 @@ export async function deleteAcademicYear(formData: FormData) {
     include: { _count: { select: { classGroups: true, enrollments: true } }, semesters: { select: { id: true, isActive: true } } },
   });
   if (!year) redirect("/school/academic?error=not-found");
-  if (year.isActive || year.semesters.some((semester) => semester.isActive)) redirect("/school/academic?error=active-period");
   if (year._count.classGroups || year._count.enrollments) redirect("/school/academic?error=year-in-use");
   await prisma.$transaction([
     prisma.semester.deleteMany({ where: { academicYearId: year.id } }),
     prisma.academicYear.delete({ where: { id: year.id } }),
-    prisma.auditLog.create({ data: { schoolId: actor.schoolId, actorId: actor.actorId, action: "academic_year.deleted", entityType: "AcademicYear", entityId: year.id, oldValue: { name: year.name, startDate: year.startDate, endDate: year.endDate, semesterCount: year.semesters.length } } }),
+    prisma.auditLog.create({ data: { schoolId: actor.schoolId, actorId: actor.actorId, action: "academic_year.deleted", entityType: "AcademicYear", entityId: year.id, oldValue: { name: year.name, startDate: year.startDate, endDate: year.endDate, wasActive: year.isActive, semesterCount: year.semesters.length } } }),
   ]);
   revalidatePath("/school");
   revalidatePath("/school/academic");
