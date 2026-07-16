@@ -2,7 +2,37 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth, signOut } from "@/auth";
+import { SidebarNav } from "@/components/sidebar-nav";
 import { prisma } from "@/lib/prisma";
+
+const navigation = [
+  { label: "Ringkasan", items: [{ href: "/school", label: "Dashboard", icon: "⌂", exact: true }] },
+  { label: "Akademik", items: [
+    { href: "/school/academic", label: "Tahun Ajaran", icon: "◫" },
+    { href: "/school/classes", label: "Kelas & Rombel", icon: "▦" },
+    { href: "/school/homerooms", label: "Wali Kelas", icon: "◎" },
+  ] },
+  { label: "Peserta Didik", items: [
+    { href: "/school/students", label: "Siswa & Wali", icon: "♙", exact: true },
+    { href: "/school/students/lifecycle", label: "Siklus Siswa", icon: "↻" },
+    { href: "/school/students/import", label: "Import & Export", icon: "⇅" },
+    { href: "/school/guardians/portal", label: "Portal Wali", icon: "◇" },
+  ] },
+  { label: "Operasional", items: [
+    { href: "/school/attendance", label: "Absensi", icon: "✓", exact: true },
+    { href: "/school/attendance/reports", label: "Rekap Absensi", icon: "▥" },
+    { href: "/school/finance", label: "Keuangan", icon: "Rp", exact: true },
+    { href: "/school/finance/reports", label: "Laporan Keuangan", icon: "↗" },
+    { href: "/school/announcements/feed", label: "Pengumuman", icon: "◉" },
+    { href: "/school/announcements", label: "Kelola Pengumuman", icon: "✎", exact: true },
+  ] },
+  { label: "Administrasi", items: [
+    { href: "/school/audit", label: "Audit Log", icon: "≣" },
+    { href: "/school/members", label: "Anggota", icon: "♧" },
+    { href: "/school/settings", label: "Pengaturan", icon: "⚙" },
+    { href: "/account/security", label: "Keamanan Akun", icon: "◆" },
+  ] },
+];
 
 export default async function SchoolLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -25,26 +55,7 @@ export default async function SchoolLayout({ children }: { children: React.React
           </span>
         </Link>
 
-        <nav className="admin-nav" aria-label="Navigasi sekolah">
-          <Link href="/school">Dashboard</Link>
-          <Link href="/school/academic">Tahun Ajaran</Link>
-          <Link href="/school/classes">Kelas & Rombel</Link>
-          <Link href="/school/homerooms">Wali Kelas</Link>
-          <Link href="/school/students">Siswa & Wali</Link>
-          <Link href="/school/students/lifecycle">Siklus Siswa</Link>
-          <Link href="/school/students/import">Import & Export</Link>
-          <Link href="/school/guardians/portal">Akses Portal Wali</Link>
-          <Link href="/school/attendance">Absensi</Link>
-          <Link href="/school/attendance/reports">Rekap Absensi</Link>
-          <Link href="/school/finance">Keuangan</Link>
-          <Link href="/school/finance/reports">Laporan Keuangan</Link>
-          <Link href="/school/announcements/feed">Pengumuman</Link>
-          <Link href="/school/announcements">Kelola Pengumuman</Link>
-          <Link href="/school/audit">Audit Log</Link>
-          <Link href="/school/members">Anggota</Link>
-          <Link href="/school/settings">Pengaturan</Link>
-          <Link href="/account/security">Keamanan Akun</Link>
-        </nav>
+        <SidebarNav groups={navigation} />
 
         <div className="admin-account">
           <strong>{session.user.name ?? "Pengguna Sekolah"}</strong>
