@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: my_sekolah_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d my_sekolah_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/my_sekolah_test?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/my_sekolah_test?schema=public
+      AUTH_SECRET: ci-auth-secret-at-least-32-characters-long
+      NEXTAUTH_SECRET: ci-auth-secret-at-least-32-characters-long
+      APP_URL: http://127.0.0.1:3100
+      PLATFORM_OWNER_EMAIL: owner-ci@example.test
+      PLATFORM_OWNER_PASSWORD: TestPassword123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npm run test:e2e
