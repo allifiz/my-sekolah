@@ -45,7 +45,6 @@ export function ConfirmFormSubmit({
               className="primary-button"
               onClick={() => {
                 dialogRef.current?.close();
-                document.getElementById(formId)?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
                 (document.getElementById(formId) as HTMLFormElement | null)?.requestSubmit();
               }}
             >
